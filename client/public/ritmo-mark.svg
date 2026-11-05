@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 80" role="img" aria-labelledby="title desc">
+  <title id="title">Ritmo Fit</title>
+  <desc id="desc">Dos arcos fucsias estilizados alrededor de una estrella de movimiento</desc>
+  <g fill="none" stroke="#e83e8c" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke-width="9" d="M20 55c8-24 25-37 48-37"/>
+    <path stroke-width="9" d="M92 18c23 0 39 13 48 37"/>
+  </g>
+  <path fill="#e83e8c" d="m80 16 5.8 15.2L102 36l-16.2 4.8L80 56l-5.8-15.2L58 36l16.2-4.8L80 16Z"/>
+</svg>
