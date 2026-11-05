@@ -34,13 +34,13 @@ describe("URLs de demostración de ejercicios", () => {
     expect(getVideoEmbedUrl("javascript:alert(1)")).toBeNull();
   });
 
-  it("asocia 65 alternativas de YouTube a ejercicios reales sin reemplazar los Vimeo originales", () => {
+  it("asocia 72 alternativas de YouTube a ejercicios reales sin reemplazar los Vimeo originales", () => {
     const routineExercises = Object.values(ROUTINE).flatMap(days =>
       days.flatMap(day => day.exercises)
     );
     const alternativeEntries = Object.entries(VIDEO_ALTERNATIVES);
 
-    expect(alternativeEntries).toHaveLength(65);
+    expect(alternativeEntries).toHaveLength(72);
     for (const [exerciseName, alternative] of alternativeEntries) {
       expect(
         routineExercises.some(exercise => exercise.name === exerciseName)
@@ -61,5 +61,32 @@ describe("URLs de demostración de ejercicios", () => {
       routineExercises.find(exercise => exercise.name === "Sentadilla Goblet")
         ?.videoUrl
     ).toContain("vimeo.com/753376052");
+  });
+
+  it("conserva las siete URLs de YouTube que indicó la usuaria", () => {
+    const supplied: Record<string, string> = {
+      "Sentadilla con toque de rodilla":
+        "https://www.youtube.com/shorts/X0yrW-ta5b0",
+      "Desplante con codo cruzado":
+        "https://www.youtube.com/watch?v=LGlgmlCkuWg&pp=ygUaRGVzcGxhbnRlIGNvbiBjb2RvIGNydXphZG8%3D",
+      "Hip thrust": "https://www.youtube.com/shorts/pSwLdoIwPik",
+      "Curl femoral sentado": "https://www.youtube.com/shorts/VzXQuzPJwHU",
+      "Remo horizontal":
+        "https://www.youtube.com/shorts/iyh2wbpqlNY?feature=share",
+      "Pull over": "https://www.youtube.com/shorts/rRZ8hhpKozA?feature=share",
+      "Agarre supino máquina Smith":
+        "https://www.youtube.com/watch?v=iGt14SeaOeQ&pp=ygUcQWdhcnJlIHN1cGlubyBtw6FxdWluYSBzbWl0aA%3D%3D",
+    };
+
+    expect(Object.keys(supplied)).toHaveLength(7);
+    for (const [exerciseName, watchUrl] of Object.entries(supplied)) {
+      const alternative = VIDEO_ALTERNATIVES[exerciseName];
+      expect(alternative).toBeDefined();
+      expect(alternative.watchUrl).toBe(watchUrl);
+      expect(alternative.sourceUrl).toBe(watchUrl);
+      expect(getVideoEmbedUrl(alternative.embedUrl)).toBe(
+        `${alternative.embedUrl}?rel=0&playsinline=1`
+      );
+    }
   });
 });

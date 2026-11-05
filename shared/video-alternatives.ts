@@ -33,6 +33,16 @@ export const VIDEO_ALTERNATIVES: Record<string, VideoAlternative> = {
     creator: "Life Fitness / Hammer Strength",
     sourceUrl: "https://www.youtube.com/watch?v=b-cxonq03vQ",
   },
+  "Agarre supino máquina Smith": {
+    watchUrl:
+      "https://www.youtube.com/watch?v=iGt14SeaOeQ&pp=ygUcQWdhcnJlIHN1cGlubyBtw6FxdWluYSBzbWl0aA%3D%3D",
+    embedUrl: "https://www.youtube-nocookie.com/embed/iGt14SeaOeQ",
+    provider: "YouTube",
+    title: "Remo inclinado con maquina smith supino",
+    creator: "VidaFit TV",
+    sourceUrl:
+      "https://www.youtube.com/watch?v=iGt14SeaOeQ&pp=ygUcQWdhcnJlIHN1cGlubyBtw6FxdWluYSBzbWl0aA%3D%3D",
+  },
   "Burpee abriendo piernas": {
     watchUrl: "https://www.youtube.com/watch?v=eSz0YucMzd0",
     embedUrl: "https://www.youtube-nocookie.com/embed/eSz0YucMzd0",
@@ -104,6 +114,24 @@ export const VIDEO_ALTERNATIVES: Record<string, VideoAlternative> = {
     title: "How to Lying Leg Curl | Proper Technique, Set Up, & Mistakes",
     creator: "Physique Development",
     sourceUrl: "https://www.youtube.com/watch?v=vl5nUdE9mWM",
+  },
+  "Curl femoral sentado": {
+    watchUrl: "https://www.youtube.com/shorts/VzXQuzPJwHU",
+    embedUrl: "https://www.youtube-nocookie.com/embed/VzXQuzPJwHU",
+    provider: "YouTube",
+    title: "CURL FEMORAL EN MÁQUINA SENTADO",
+    creator: "Priscilla_bc",
+    sourceUrl: "https://www.youtube.com/shorts/VzXQuzPJwHU",
+  },
+  "Desplante con codo cruzado": {
+    watchUrl:
+      "https://www.youtube.com/watch?v=LGlgmlCkuWg&pp=ygUaRGVzcGxhbnRlIGNvbiBjb2RvIGNydXphZG8%3D",
+    embedUrl: "https://www.youtube-nocookie.com/embed/LGlgmlCkuWg",
+    provider: "YouTube",
+    title: "Desplante Cruzado / Curtsy Lunge",
+    creator: "Karen Zárate",
+    sourceUrl:
+      "https://www.youtube.com/watch?v=LGlgmlCkuWg&pp=ygUaRGVzcGxhbnRlIGNvbiBjb2RvIGNydXphZG8%3D",
   },
   "Desplante con patada de glúteo": {
     watchUrl: "https://www.youtube.com/watch?v=rkpvx4DuJJI",
@@ -252,6 +280,14 @@ export const VIDEO_ALTERNATIVES: Record<string, VideoAlternative> = {
     creator: "Live Lean TV Daily Exercises",
     sourceUrl: "https://www.youtube.com/watch?v=dbQ7HLrqdpY",
   },
+  "Hip thrust": {
+    watchUrl: "https://www.youtube.com/shorts/pSwLdoIwPik",
+    embedUrl: "https://www.youtube-nocookie.com/embed/pSwLdoIwPik",
+    provider: "YouTube",
+    title: "Banded Hip Thrust - Activation",
+    creator: "Jess Aitch",
+    sourceUrl: "https://www.youtube.com/shorts/pSwLdoIwPik",
+  },
   "Hip thrust 1 pierna": {
     watchUrl: "https://www.youtube.com/watch?v=qCObDXTe4KY",
     embedUrl: "https://www.youtube-nocookie.com/embed/qCObDXTe4KY",
@@ -383,6 +419,15 @@ export const VIDEO_ALTERNATIVES: Record<string, VideoAlternative> = {
     creator: "Squat University",
     sourceUrl: "https://www.youtube.com/watch?v=Zfr6wizR8rs",
   },
+  "Pull over": {
+    watchUrl: "https://www.youtube.com/shorts/rRZ8hhpKozA?feature=share",
+    embedUrl: "https://www.youtube-nocookie.com/embed/rRZ8hhpKozA",
+    provider: "YouTube",
+    title:
+      "Técnica PULL OVER en POLEA ALTA 💪🏽 #ejercicio #espalda #pullover #backday #backworkout",
+    creator: "ShapeofLaura",
+    sourceUrl: "https://www.youtube.com/shorts/rRZ8hhpKozA?feature=share",
+  },
   "Plancha alta con toques al hombro": {
     watchUrl: "https://www.youtube.com/watch?v=eNh_Lf6x6d8",
     embedUrl: "https://www.youtube-nocookie.com/embed/eNh_Lf6x6d8",
@@ -456,6 +501,14 @@ export const VIDEO_ALTERNATIVES: Record<string, VideoAlternative> = {
     creator: "Your House Fitness",
     sourceUrl: "https://www.youtube.com/watch?v=-Cz7-dqpLOE",
   },
+  "Remo horizontal": {
+    watchUrl: "https://www.youtube.com/shorts/iyh2wbpqlNY?feature=share",
+    embedUrl: "https://www.youtube-nocookie.com/embed/iyh2wbpqlNY",
+    provider: "YouTube",
+    title: "Remo horizontal agarre neutro",
+    creator: "Maria Antonia Entrenadora",
+    sourceUrl: "https://www.youtube.com/shorts/iyh2wbpqlNY?feature=share",
+  },
   "Saltos de sentadilla lado a lado": {
     watchUrl: "https://www.youtube.com/watch?v=XxZNflpKQm4",
     embedUrl: "https://www.youtube-nocookie.com/embed/XxZNflpKQm4",
@@ -503,6 +556,14 @@ export const VIDEO_ALTERNATIVES: Record<string, VideoAlternative> = {
     title: "Squat with toe touch",
     creator: "Train Like Rob | Personal Trainer Vancouver",
     sourceUrl: "https://www.youtube.com/watch?v=gEIsJdFFTzw",
+  },
+  "Sentadilla con toque de rodilla": {
+    watchUrl: "https://www.youtube.com/shorts/X0yrW-ta5b0",
+    embedUrl: "https://www.youtube-nocookie.com/embed/X0yrW-ta5b0",
+    provider: "YouTube",
+    title: "Sentadilla con elevación de rodilla",
+    creator: "The Fit Flow",
+    sourceUrl: "https://www.youtube.com/shorts/X0yrW-ta5b0",
   },
   "Sentadilla Goblet": {
     watchUrl: "https://www.youtube.com/watch?v=nfX7IFK9UNI",
