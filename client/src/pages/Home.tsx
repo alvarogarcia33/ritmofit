@@ -42,6 +42,7 @@ import {
   type Exercise,
   type Level,
 } from "@shared/routine";
+import { VIDEO_ALTERNATIVES } from "@shared/video-alternatives";
 
 export default function Home() {
   const { user, loading, progress, overrides, updateProfile, writeProgress } =
@@ -53,7 +54,7 @@ export default function Home() {
   const [guestLevel, setGuestLevel] = useState<Level>("beginner");
   const [video, setVideo] = useState<Pick<
     Exercise,
-    "name" | "videoUrl" | "tips"
+    "name" | "videoUrl" | "tips" | "videoAlternative"
   > | null>(null);
   const [celebration, setCelebration] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -79,10 +80,17 @@ export default function Home() {
   const routine = days.find(d => d.day === day) ?? days[0];
   const exercises = routine.exercises
     .filter(e => e.block <= config.blocks)
-    .map(e => ({
-      ...e,
-      ...(overrides.find(o => o.exerciseId === e.id) ?? {}),
-    }));
+    .map(e => {
+      const override = overrides.find(o => o.exerciseId === e.id);
+      return {
+        ...e,
+        ...(override ?? {}),
+        videoAlternative:
+          override && override.name !== e.name
+            ? undefined
+            : (VIDEO_ALTERNATIVES[e.name] ?? e.videoAlternative),
+      };
+    });
   const record: Progress = savedRecord ?? {
     dayKey: key,
     completedSets: [],

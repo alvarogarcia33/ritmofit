@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { Exercise } from "@shared/routine";
+import { getVideoEmbedUrl } from "@shared/video";
 
 export function TimerCard({
   restSeconds,
@@ -125,7 +126,10 @@ export function VideoModal({
   exercise,
   onClose,
 }: {
-  exercise: Pick<Exercise, "name" | "videoUrl" | "tips"> | null;
+  exercise: Pick<
+    Exercise,
+    "name" | "videoUrl" | "tips" | "videoAlternative"
+  > | null;
   onClose: () => void;
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -146,11 +150,11 @@ export function VideoModal({
     };
   }, [exercise, onClose]);
   if (!exercise) return null;
-  const url = new URL(exercise.videoUrl);
-  const parts = url.pathname.split("/").filter(Boolean);
-  const id = parts[0] === "video" ? parts[1] : parts[0];
-  const hash = parts[0] === "video" ? url.searchParams.get("h") : parts[1];
-  const embed = `https://player.vimeo.com/video/${id}?${hash ? `h=${hash}&` : ""}title=0&byline=0&portrait=0`;
+  const alternative = exercise.videoAlternative;
+  const embed =
+    (alternative && getVideoEmbedUrl(alternative.embedUrl)) ||
+    getVideoEmbedUrl(exercise.videoUrl);
+  const fallbackUrl = alternative?.watchUrl ?? exercise.videoUrl;
   return (
     <div className="modal-overlay" onClick={onClose}>
       <section
@@ -162,7 +166,11 @@ export function VideoModal({
       >
         <div className="modal-header">
           <div>
-            <span className="eyebrow">DEMOSTRACIÓN ORIGINAL</span>
+            <span className="eyebrow">
+              {alternative
+                ? "DEMOSTRACIÓN ALTERNATIVA"
+                : "DEMOSTRACIÓN ORIGINAL"}
+            </span>
             <h2 id="video-title">{exercise.name}</h2>
           </div>
           <button
@@ -175,12 +183,22 @@ export function VideoModal({
           </button>
         </div>
         <div className="video-frame">
-          <iframe
-            src={embed}
-            title={`Cómo hacer ${exercise.name}`}
-            allow="autoplay; fullscreen; picture-in-picture"
-            allowFullScreen
-          />
+          {embed ? (
+            <iframe
+              src={embed}
+              title={`Cómo hacer ${exercise.name}`}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+            />
+          ) : (
+            <div className="video-unavailable">
+              <p>No se puede insertar este video en la app.</p>
+              <a href={fallbackUrl} target="_blank" rel="noreferrer">
+                Abrir video en otra pestaña <ExternalLink size={15} />
+              </a>
+            </div>
+          )}
         </div>
         <div className="video-information">
           <h3>Hazlo con intención</h3>
@@ -188,17 +206,38 @@ export function VideoModal({
             {exercise.tips ||
               "Revisa la demostración completa antes de empezar. Mantén el control del movimiento y detente si sientes dolor."}
           </p>
-          <a
-            href={exercise.videoUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-link"
-          >
-            Abrir demostración en Vimeo <ExternalLink size={15} />
-          </a>
+          {alternative && (
+            <p className="video-attribution">
+              {alternative.title} · {alternative.creator}. Demostración externa;
+              no forma parte del PDF.
+            </p>
+          )}
+          <div className="video-links">
+            {alternative && (
+              <a
+                href={alternative.watchUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-link"
+              >
+                Abrir alternativa en {alternative.provider}{" "}
+                <ExternalLink size={15} />
+              </a>
+            )}
+            <a
+              href={exercise.videoUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-link original-video-link"
+            >
+              Abrir video original del PDF en Vimeo <ExternalLink size={15} />
+            </a>
+          </div>
           <small>
-            Si Vimeo restringe la reproducción integrada, usa el enlace
-            original. Ante dolor, mareo o molestias, detén la sesión.
+            {alternative
+              ? "La alternativa usa el reproductor oficial del proveedor; el enlace Vimeo original se conserva como referencia. "
+              : "Vimeo puede restringir la reproducción integrada según los permisos del propietario. "}
+            Ante dolor, mareo o molestias, detén la sesión.
           </small>
         </div>
       </section>

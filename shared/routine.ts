@@ -44,6 +44,16 @@ export type Exercise = {
   thumbnail: string;
   block: number;
   tips: string;
+  videoAlternative?: VideoAlternative;
+};
+
+export type VideoAlternative = {
+  watchUrl: string;
+  embedUrl: string;
+  provider: "YouTube";
+  title: string;
+  creator: string;
+  sourceUrl: string;
 };
 
 export type RoutineDay = {

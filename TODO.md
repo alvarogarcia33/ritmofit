@@ -32,8 +32,13 @@
 - [x] La app debe ser práctica, dinámica, adaptable a móvil y escritorio, y estar redactada en español.
 - [x] Debe analizar y conservar el tono del PDF: blanco, rosa claro, rosa medio y fucsia, con bloques de color por nivel y titulares de alto contraste.
 
+## 7. Demostraciones de ejercicio reproducibles
+- [x] Para los 65 movimientos distintos con alternativa exacta y reproducible validada (73 de 108 fichas), el reproductor integra la demo de YouTube y conserva el Vimeo original como referencia. No se cambiaron nombres, ejercicios, orden, series, repeticiones ni calendario de la rutina.
+- [x] Verificar que cada enlace alternativo corresponde al ejercicio indicado y admite inserción pública antes de usarlo; etiquetarlo como demostración alternativa, sin atribuirlo a la autora del PDF. Los enlaces de YouTube se probaron con el IFrame API en Chromium con referente web, y los casos dudosos o de variante no exacta se excluyeron.
+- [ ] Los 28 movimientos distintos restantes (35 fichas) no tienen una alternativa exacta validada en esta búsqueda; se conserva visible su enlace original a Vimeo y no se presenta un video aproximado como si fuera equivalente.
+
 ## Evidencia de implementación
 
 El catálogo contiene 12 días distintos y 108 fichas con 108 miniaturas originales. La revisión de solo lectura comprobó que los 108 enlaces coinciden con las anotaciones del PDF. La app tiene 6 rutas de página declaradas en `/manus-routes.json`, verificadas por HTTP; `/api/health` devuelve 200. Las APIs de progreso y administración rechazan acceso anónimo con 401; la autorización y el ownership se comprueban en el servidor.
 
-`pnpm check`, `pnpm test` (14 pruebas en 4 archivos) y `pnpm build` finalizaron correctamente. La revisión independiente no encontró defectos críticos y se corrigieron sus dos observaciones: estrella para cada serie añadida y navegación reactiva por query/historial. Las sesiones guardan su nivel histórico y fecha de cumplimiento. La cuenta administrativa se creó por CLI, no mediante un registro público, y sus credenciales permanecen fuera del repositorio.
+`pnpm check`, `pnpm test` (18 pruebas en 5 archivos) y `pnpm build` finalizaron correctamente después de integrar el catálogo de videos. El test cubre las 65 alternativas, que todas correspondan a nombres reales de ejercicios, y que los enlaces Vimeo originales permanezcan intactos. La revisión independiente anterior no encontró defectos críticos; se corrigieron sus observaciones: estrella para cada serie y navegación reactiva por query/historial. Las sesiones guardan su nivel histórico y fecha de cumplimiento. La cuenta administrativa se creó por CLI, no mediante un registro público, y sus credenciales permanecen fuera del repositorio.

@@ -32,7 +32,7 @@ export default function Program() {
   const { user, progress } = useFit();
   const [video, setVideo] = useState<Pick<
     Exercise,
-    "name" | "videoUrl" | "tips"
+    "name" | "videoUrl" | "tips" | "videoAlternative"
   > | null>(null);
   const closeVideo = useCallback(() => setVideo(null), []);
   const pending = user ? overdueDays(user, progress) : [];
