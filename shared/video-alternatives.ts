@@ -33,6 +33,17 @@ export const VIDEO_ALTERNATIVES: Record<string, VideoAlternative> = {
     creator: "Life Fitness / Hammer Strength",
     sourceUrl: "https://www.youtube.com/watch?v=b-cxonq03vQ",
   },
+  "Agarre prono máquina Smith": {
+    watchUrl:
+      "https://www.youtube.com/watch?v=f4zUg5CAnNY&pp=ygUbQWdhcnJlIHByb25vIG3DoXF1aW5hIHNtaXRo",
+    embedUrl: "https://www.youtube-nocookie.com/embed/f4zUg5CAnNY",
+    provider: "YouTube",
+    title:
+      "Remo prono con maquina Smith (Gimnasio) - Prone Grip Smith Machine Row (Gym)",
+    creator: "Valverde Fitness",
+    sourceUrl:
+      "https://www.youtube.com/watch?v=f4zUg5CAnNY&pp=ygUbQWdhcnJlIHByb25vIG3DoXF1aW5hIHNtaXRo",
+  },
   "Agarre supino máquina Smith": {
     watchUrl:
       "https://www.youtube.com/watch?v=iGt14SeaOeQ&pp=ygUcQWdhcnJlIHN1cGlubyBtw6FxdWluYSBzbWl0aA%3D%3D",
@@ -42,6 +53,22 @@ export const VIDEO_ALTERNATIVES: Record<string, VideoAlternative> = {
     creator: "VidaFit TV",
     sourceUrl:
       "https://www.youtube.com/watch?v=iGt14SeaOeQ&pp=ygUcQWdhcnJlIHN1cGlubyBtw6FxdWluYSBzbWl0aA%3D%3D",
+  },
+  "Alabanzas en polea": {
+    watchUrl: "https://www.youtube.com/shorts/xYIVO1nCm3E?t=6&feature=share",
+    embedUrl: "https://www.youtube-nocookie.com/embed/xYIVO1nCm3E",
+    provider: "YouTube",
+    title: "Crunch en polea alta",
+    creator: "Priscilla_bc",
+    sourceUrl: "https://www.youtube.com/shorts/xYIVO1nCm3E?t=6&feature=share",
+  },
+  Bicicletas: {
+    watchUrl: "https://www.youtube.com/shorts/XTzt-nekQh4?feature=share",
+    embedUrl: "https://www.youtube-nocookie.com/embed/XTzt-nekQh4",
+    provider: "YouTube",
+    title: "Abdominales bicicleta",
+    creator: "Pri Mentora de mujeres",
+    sourceUrl: "https://www.youtube.com/shorts/XTzt-nekQh4?feature=share",
   },
   "Burpee abriendo piernas": {
     watchUrl: "https://www.youtube.com/watch?v=eSz0YucMzd0",
@@ -90,6 +117,13 @@ export const VIDEO_ALTERNATIVES: Record<string, VideoAlternative> = {
     title: "EJECUTA CORRECTAMENTE COPA A DOS MANOS SENTADO",
     creator: "Deportika Online",
     sourceUrl: "https://www.youtube.com/watch?v=qi1wdN9Weq0",
+  },
+  "Crunch piernas flexionadas": {
+    watchUrl: "https://www.youtube.com/shorts/js5_QOy2PL8",
+    provider: "YouTube",
+    title: "CRUNCH PIERNAS FLEXIONADAS",
+    creator: "Valentínfitnesscoach",
+    sourceUrl: "https://www.youtube.com/shorts/js5_QOy2PL8",
   },
   "Crunch sobre pelota": {
     watchUrl: "https://www.youtube.com/watch?v=90MxhdXW15o",
@@ -231,6 +265,14 @@ export const VIDEO_ALTERNATIVES: Record<string, VideoAlternative> = {
     creator: "Vitar Club",
     sourceUrl: "https://www.youtube.com/watch?v=aKDYtQbCKWY",
   },
+  "Elevación de rodillas alternadas en silla romana": {
+    watchUrl: "https://www.youtube.com/shorts/G_xkqJkTxOg",
+    embedUrl: "https://www.youtube-nocookie.com/embed/G_xkqJkTxOg",
+    provider: "YouTube",
+    title: "Rodillas al pecho en silla romana",
+    creator: "ANA LOMBAO- FITNESS ANA",
+    sourceUrl: "https://www.youtube.com/shorts/G_xkqJkTxOg",
+  },
   "Encogimientos laterales parado codo rodilla unilateral": {
     watchUrl: "https://www.youtube.com/watch?v=ohT0H_jkWSM",
     embedUrl: "https://www.youtube-nocookie.com/embed/ohT0H_jkWSM",
@@ -354,6 +396,24 @@ export const VIDEO_ALTERNATIVES: Record<string, VideoAlternative> = {
     creator: "ashleybordenfitness",
     sourceUrl: "https://www.youtube.com/watch?v=UIeRpmChot0",
   },
+  "Medio burpee con toques de talones": {
+    watchUrl: "https://www.youtube.com/shorts/U41BnapyufE",
+    embedUrl: "https://www.youtube-nocookie.com/embed/U41BnapyufE",
+    provider: "YouTube",
+    title: "Medio burpees con trote circular",
+    creator: "Bruno Loiacono",
+    sourceUrl: "https://www.youtube.com/shorts/U41BnapyufE",
+  },
+  "Mountain climber zancada completa": {
+    watchUrl:
+      "https://www.youtube.com/watch?v=kLh-uczlPLg&pp=ygUhTW91bnRhaW4gY2xpbWJlciB6YW5jYWRhIGNvbXBsZXRh0gcJCSkMAYcqIYzv",
+    embedUrl: "https://www.youtube-nocookie.com/embed/kLh-uczlPLg",
+    provider: "YouTube",
+    title: "How To Do Mountain Climbers",
+    creator: "PureGym",
+    sourceUrl:
+      "https://www.youtube.com/watch?v=kLh-uczlPLg&pp=ygUhTW91bnRhaW4gY2xpbWJlciB6YW5jYWRhIGNvbXBsZXRh0gcJCSkMAYcqIYzv",
+  },
   "Mountain climbers": {
     watchUrl: "https://www.youtube.com/watch?v=hZb6jTbCLeE",
     embedUrl: "https://www.youtube-nocookie.com/embed/hZb6jTbCLeE",
@@ -419,15 +479,6 @@ export const VIDEO_ALTERNATIVES: Record<string, VideoAlternative> = {
     creator: "Squat University",
     sourceUrl: "https://www.youtube.com/watch?v=Zfr6wizR8rs",
   },
-  "Pull over": {
-    watchUrl: "https://www.youtube.com/shorts/rRZ8hhpKozA?feature=share",
-    embedUrl: "https://www.youtube-nocookie.com/embed/rRZ8hhpKozA",
-    provider: "YouTube",
-    title:
-      "Técnica PULL OVER en POLEA ALTA 💪🏽 #ejercicio #espalda #pullover #backday #backworkout",
-    creator: "ShapeofLaura",
-    sourceUrl: "https://www.youtube.com/shorts/rRZ8hhpKozA?feature=share",
-  },
   "Plancha alta con toques al hombro": {
     watchUrl: "https://www.youtube.com/watch?v=eNh_Lf6x6d8",
     embedUrl: "https://www.youtube-nocookie.com/embed/eNh_Lf6x6d8",
@@ -435,6 +486,14 @@ export const VIDEO_ALTERNATIVES: Record<string, VideoAlternative> = {
     title: "High Plank Shoulder Tap Exercise Tutorial | Plank Variations",
     creator: "Lift With Michelle - Exercise Form Tutorials",
     sourceUrl: "https://www.youtube.com/watch?v=eNh_Lf6x6d8",
+  },
+  "Plancha alta tocando puntas de los pies": {
+    watchUrl: "https://www.youtube.com/shorts/VSCWAVQhQdk",
+    embedUrl: "https://www.youtube-nocookie.com/embed/VSCWAVQhQdk",
+    provider: "YouTube",
+    title: "Plancha con toque de pies",
+    creator: "Ari Gómez | Fitness & Mindset",
+    sourceUrl: "https://www.youtube.com/shorts/VSCWAVQhQdk",
   },
   "Plancha con saltos": {
     watchUrl: "https://www.youtube.com/watch?v=8Do3ssZ23Mc",
@@ -469,6 +528,14 @@ export const VIDEO_ALTERNATIVES: Record<string, VideoAlternative> = {
     creator: "Fitness Consciente",
     sourceUrl: "https://www.youtube.com/watch?v=-V1tV5z7B9w",
   },
+  "Prensa pies a la altura de tus hombros": {
+    watchUrl: "https://www.youtube.com/shorts/B6ncs6zWsIo?feature=share",
+    embedUrl: "https://www.youtube-nocookie.com/embed/B6ncs6zWsIo",
+    provider: "YouTube",
+    title: "Prensa 45 pies al ancho de los hombros",
+    creator: "WALTERFITPRO",
+    sourceUrl: "https://www.youtube.com/shorts/B6ncs6zWsIo?feature=share",
+  },
   "Prensa pies arriba": {
     watchUrl: "https://www.youtube.com/watch?v=tY2uGI4EzCQ",
     embedUrl: "https://www.youtube-nocookie.com/embed/tY2uGI4EzCQ",
@@ -484,6 +551,23 @@ export const VIDEO_ALTERNATIVES: Record<string, VideoAlternative> = {
     title: "🔩 Cómo hacer PRESS MILITAR con BARRA: TÉCNICA y posturas posibles",
     creator: "FRAN - ENTRENADOR REMEROS",
     sourceUrl: "https://www.youtube.com/watch?v=0rdgzp-HXho",
+  },
+  "Pull over": {
+    watchUrl: "https://www.youtube.com/shorts/rRZ8hhpKozA?feature=share",
+    embedUrl: "https://www.youtube-nocookie.com/embed/rRZ8hhpKozA",
+    provider: "YouTube",
+    title:
+      "Técnica PULL OVER en POLEA ALTA 💪🏽 #ejercicio #espalda #pullover #backday #backworkout",
+    creator: "ShapeofLaura",
+    sourceUrl: "https://www.youtube.com/shorts/rRZ8hhpKozA?feature=share",
+  },
+  "Rebotes en sentadilla adelante y atrás": {
+    watchUrl: "https://www.youtube.com/shorts/F43lMNff864",
+    embedUrl: "https://www.youtube-nocookie.com/embed/F43lMNff864",
+    provider: "YouTube",
+    title: "Sentadilla sumo con rebote + Sentadilla sumo con salto",
+    creator: "Hablemos de hábitos",
+    sourceUrl: "https://www.youtube.com/shorts/F43lMNff864",
   },
   "Remo agarre supino en polea con barra": {
     watchUrl: "https://www.youtube.com/watch?v=0N1lKtjgZXU",
@@ -508,6 +592,22 @@ export const VIDEO_ALTERNATIVES: Record<string, VideoAlternative> = {
     title: "Remo horizontal agarre neutro",
     creator: "Maria Antonia Entrenadora",
     sourceUrl: "https://www.youtube.com/shorts/iyh2wbpqlNY?feature=share",
+  },
+  "Rodilla – medio burpee": {
+    watchUrl: "https://www.youtube.com/shorts/B_M3o3T1YFY",
+    embedUrl: "https://www.youtube-nocookie.com/embed/B_M3o3T1YFY",
+    provider: "YouTube",
+    title: "Medio Burpee",
+    creator: "Camile Carrique",
+    sourceUrl: "https://www.youtube.com/shorts/B_M3o3T1YFY",
+  },
+  "Salto en sentadilla + sentadilla lateral": {
+    watchUrl: "https://www.youtube.com/shorts/WhwK4abpoD4",
+    embedUrl: "https://www.youtube-nocookie.com/embed/WhwK4abpoD4",
+    provider: "YouTube",
+    title: "Sentadilla con saltos laterales sobre step",
+    creator: "Gimnasioexclusivoparamujeres",
+    sourceUrl: "https://www.youtube.com/shorts/WhwK4abpoD4",
   },
   "Saltos de sentadilla lado a lado": {
     watchUrl: "https://www.youtube.com/watch?v=XxZNflpKQm4",
@@ -549,6 +649,38 @@ export const VIDEO_ALTERNATIVES: Record<string, VideoAlternative> = {
     creator: "ShareItFitness",
     sourceUrl: "https://www.youtube.com/watch?v=NXIMcA9EMD0",
   },
+  "Sentadilla + desplante": {
+    watchUrl: "https://www.youtube.com/shorts/kTETkyhfOM8?feature=share",
+    embedUrl: "https://www.youtube-nocookie.com/embed/kTETkyhfOM8",
+    provider: "YouTube",
+    title: "Desplante Alternado con Sentadilla",
+    creator: "Camile Carrique",
+    sourceUrl: "https://www.youtube.com/shorts/kTETkyhfOM8?feature=share",
+  },
+  "Sentadilla con doble jumping Jack": {
+    watchUrl: "https://www.youtube.com/shorts/K-lxz2kSoR0",
+    embedUrl: "https://www.youtube-nocookie.com/embed/K-lxz2kSoR0",
+    provider: "YouTube",
+    title: "Jumping Jack Squat",
+    creator: "Glute Pump by Allan Quesada",
+    sourceUrl: "https://www.youtube.com/shorts/K-lxz2kSoR0",
+  },
+  "Sentadilla con pies cruzados": {
+    watchUrl: "https://youtu.be/_wucwNLt9h4?t=18",
+    embedUrl: "https://www.youtube-nocookie.com/embed/_wucwNLt9h4",
+    provider: "YouTube",
+    title: "🎥 Sentadilla cruzada - Roots videotips  ✅",
+    creator: "Roots Health Center",
+    sourceUrl: "https://youtu.be/_wucwNLt9h4?t=18",
+  },
+  "Sentadilla con toque cruzado": {
+    watchUrl: "https://www.youtube.com/shorts/c1OqCwe2eOs",
+    embedUrl: "https://www.youtube-nocookie.com/embed/c1OqCwe2eOs",
+    provider: "YouTube",
+    title: "Sentadilla con salto cruzado",
+    creator: "Camile Carrique",
+    sourceUrl: "https://www.youtube.com/shorts/c1OqCwe2eOs",
+  },
   "Sentadilla con toque de pie": {
     watchUrl: "https://www.youtube.com/watch?v=gEIsJdFFTzw",
     embedUrl: "https://www.youtube-nocookie.com/embed/gEIsJdFFTzw",
@@ -565,6 +697,14 @@ export const VIDEO_ALTERNATIVES: Record<string, VideoAlternative> = {
     creator: "The Fit Flow",
     sourceUrl: "https://www.youtube.com/shorts/X0yrW-ta5b0",
   },
+  "Sentadilla con toque y salto": {
+    watchUrl: "https://www.youtube.com/shorts/u22GCGFa00w",
+    embedUrl: "https://www.youtube-nocookie.com/embed/u22GCGFa00w",
+    provider: "YouTube",
+    title: "sentadilla con salto y toque de tobillos",
+    creator: "Vania Fit",
+    sourceUrl: "https://www.youtube.com/shorts/u22GCGFa00w",
+  },
   "Sentadilla Goblet": {
     watchUrl: "https://www.youtube.com/watch?v=nfX7IFK9UNI",
     embedUrl: "https://www.youtube-nocookie.com/embed/nfX7IFK9UNI",
@@ -572,6 +712,16 @@ export const VIDEO_ALTERNATIVES: Record<string, VideoAlternative> = {
     title: "How to do a Goblet Squat  | Proper Form & Technique | NASM",
     creator: "National Academy of Sports Medicine (NASM)",
     sourceUrl: "https://www.youtube.com/watch?v=nfX7IFK9UNI",
+  },
+  "Sentadilla lado a lado toque trasero": {
+    watchUrl:
+      "https://www.youtube.com/watch?v=JEu3HxYrGSc&pp=ygUkU2VudGFkaWxsYSBsYWRvIGEgbGFkbyB0b3F1ZSB0cmFzZXJv",
+    embedUrl: "https://www.youtube-nocookie.com/embed/JEu3HxYrGSc",
+    provider: "YouTube",
+    title: "SENTADILLAS DE LADO A LADO.",
+    creator: "Helena Muñoz Fit Coach",
+    sourceUrl:
+      "https://www.youtube.com/watch?v=JEu3HxYrGSc&pp=ygUkU2VudGFkaWxsYSBsYWRvIGEgbGFkbyB0b3F1ZSB0cmFzZXJv",
   },
   "Sentadilla libre": {
     watchUrl: "https://www.youtube.com/watch?v=P-yaD24bUE8",
@@ -588,5 +738,28 @@ export const VIDEO_ALTERNATIVES: Record<string, VideoAlternative> = {
     title: "Sentadilla profunda en máquina smith",
     creator: "BRUNO REQUENA • Entrenador y Nutricionista Online",
     sourceUrl: "https://www.youtube.com/watch?v=WepZM6oLiU0",
+  },
+  "Sentadilla sumo": {
+    watchUrl: "https://www.youtube.com/shorts/gdfmmOq-Ypw?feature=share",
+    provider: "YouTube",
+    title: "#sentadilla #sumo #sentadillasumo #kettlebell #kettlebellworkout",
+    creator: "Lucila Sol Cabrera",
+    sourceUrl: "https://www.youtube.com/shorts/gdfmmOq-Ypw?feature=share",
+  },
+  "Sprint a toda velocidad en caminadora": {
+    watchUrl: "https://www.youtube.com/shorts/0fYVFELOyRI?feature=share",
+    embedUrl: "https://www.youtube-nocookie.com/embed/0fYVFELOyRI",
+    provider: "YouTube",
+    title: "Sprints en Cinta (Treadmill Sprint Intervals)",
+    creator: "ISoft Colombia",
+    sourceUrl: "https://www.youtube.com/shorts/0fYVFELOyRI?feature=share",
+  },
+  "V ups": {
+    watchUrl: "https://www.youtube.com/shorts/saHkR_MvIdA",
+    embedUrl: "https://www.youtube-nocookie.com/embed/saHkR_MvIdA",
+    provider: "YouTube",
+    title: "V-Ups #corework #exercise #abs",
+    creator: "The Movement Collective",
+    sourceUrl: "https://www.youtube.com/shorts/saHkR_MvIdA",
   },
 };

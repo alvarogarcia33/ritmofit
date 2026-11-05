@@ -151,9 +151,11 @@ export function VideoModal({
   }, [exercise, onClose]);
   if (!exercise) return null;
   const alternative = exercise.videoAlternative;
-  const embed =
-    (alternative && getVideoEmbedUrl(alternative.embedUrl)) ||
-    getVideoEmbedUrl(exercise.videoUrl);
+  const embed = alternative
+    ? alternative.embedUrl
+      ? getVideoEmbedUrl(alternative.embedUrl)
+      : null
+    : getVideoEmbedUrl(exercise.videoUrl);
   const fallbackUrl = alternative?.watchUrl ?? exercise.videoUrl;
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -193,7 +195,11 @@ export function VideoModal({
             />
           ) : (
             <div className="video-unavailable">
-              <p>No se puede insertar este video en la app.</p>
+              <p>
+                {alternative && !alternative.embedUrl
+                  ? "YouTube no permite reproducir este video dentro de la app."
+                  : "No se puede insertar este video en la app."}
+              </p>
               <a href={fallbackUrl} target="_blank" rel="noreferrer">
                 Abrir video en otra pestaña <ExternalLink size={15} />
               </a>
@@ -234,9 +240,11 @@ export function VideoModal({
             </a>
           </div>
           <small>
-            {alternative
-              ? "La alternativa usa el reproductor oficial del proveedor; el enlace Vimeo original se conserva como referencia. "
-              : "Vimeo puede restringir la reproducción integrada según los permisos del propietario. "}
+            {alternative && !alternative.embedUrl
+              ? "El video se abre en YouTube porque no admite inserción; el Vimeo original se conserva como referencia. "
+              : alternative
+                ? "La alternativa usa el reproductor oficial del proveedor; el enlace Vimeo original se conserva como referencia. "
+                : "Vimeo puede restringir la reproducción integrada según los permisos del propietario. "}
             Ante dolor, mareo o molestias, detén la sesión.
           </small>
         </div>

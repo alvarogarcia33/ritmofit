@@ -49,7 +49,7 @@ export type Exercise = {
 
 export type VideoAlternative = {
   watchUrl: string;
-  embedUrl: string;
+  embedUrl?: string;
   provider: "YouTube";
   title: string;
   creator: string;
