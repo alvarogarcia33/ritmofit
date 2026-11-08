@@ -799,7 +799,8 @@ export function registerFitPlanRoutes(
 ): void {
   router.get(
     "/plans",
-    route(async (_req, res) => {
+    route(async (req, res) => {
+      await deps.requireAuth(req);
       const rows = await listFitPlans();
       const plans = rows
         .map(row => parseStoredPlan(row, deps))

@@ -926,7 +926,8 @@ export async function registerFitRoutes(app: Express): Promise<void> {
 
   router.get(
     "/content",
-    asyncRoute(async (_req, res) => {
+    asyncRoute(async (req, res) => {
+      await requireAuth(req);
       res.json({ overrides: await getContentResponse() });
     })
   );

@@ -54,8 +54,9 @@ El catálogo contiene 12 días distintos y 108 fichas con 108 miniaturas origina
 
 ## 8. Biblioteca de planes y selección visual
 
-- [x] Mostrar una pre pantalla con Adelgazar y Tonificar, imágenes de referencia y colores diferentes. Adelgazar mantiene rosa/fucsia y Tonificar usa violeta. Permitir regresar a esta pantalla para cambiar de plan.
-- [x] Persistir el plan activo por usuario registrado y permitir explorar ambos sin cuenta; registrar progreso sigue requiriendo usuario y contraseña.
+- [x] Mostrar una pre pantalla con Adelgazar y Tonificar, imágenes de referencia y colores diferentes, solo después de iniciar sesión o crear una cuenta. Adelgazar mantiene rosa/fucsia y Tonificar usa violeta. Permitir regresar a esta pantalla para cambiar de plan.
+- [x] La primera pantalla de la app debe ser iniciar sesión/crear cuenta. Sin sesión no se puede abrir la biblioteca, rutina, historial, ajustes ni administración; solo el acceso. Tras iniciar sesión, abrir la biblioteca de planes. Los endpoints del catálogo y contenido también requieren autenticación. Al cerrar sesión, regresar al acceso. La sesión persistente permite volver a la biblioteca en futuras visitas.
+- [x] Persistir el plan activo por usuario registrado; el progreso requiere usuario y contraseña.
 - [x] Cambiar de plan no elimina ni sobreescribe el historial ni avances del anterior. Mostrar el plan activo en las páginas y separar sesiones, fechas de inicio, recordatorios y gráficas por plan.
 
 ## 9. Tonificar a partir de las láminas
@@ -84,3 +85,11 @@ El inicio de una nueva inscripción propone el próximo lunes (o el actual si es
 `pnpm check`, `pnpm test` (34 pruebas en 8 archivos) y `pnpm build` finalizaron correctamente. El catálogo real devuelve Adelgazar y Tonificar; 143 referencias locales comprobadas existen, con 33 assets nuevos optimizados de Tonificar. `/api/health`, las nueve rutas del manifiesto y las referencias WebP responden 200. Las APIs privadas rechazan acceso anónimo con 401 y las pruebas verifican rechazo de una cuenta normal en administración.
 
 Antes y después del arranque aditivo, los 2 registros existentes de `fit_progress` conservan exactamente la misma huella SHA-256; permanecen las 5 cuentas existentes. No se crearon usuarios de prueba ni se modificaron registros personales durante las verificaciones.
+
+## Evidencia de acceso obligatorio · 8 de noviembre
+
+La entrada a `/` y una visita directa a `/planes` muestran iniciar sesión/crear cuenta en la comprobación móvil de Preview; no se renderizan las tarjetas de planes sin cuenta. Todas las páginas salvo `/acceso` están envueltas en la guardia de sesión, incluidos enlaces con semana/día y rutas desconocidas. Login y registro redirigen a `/planes`; logout regresa a `/acceso` y limpia el catálogo/progreso en memoria. La selección local antigua de invitado ya no se utiliza.
+
+Las APIs de catálogo `/api/fit/plans` y contenido `/api/fit/content` requieren autenticación y devuelven 401 sin sesión, al igual que estado, progreso y administración. Una petición privada con sesión expirada elimina la credencial cliente y vuelve al acceso; una contraseña equivocada mantiene el formulario de login. La sesión válida continúa usando la cookie segura y las sesiones MySQL existentes. No se cambiaron tablas ni registros de usuarios o progreso.
+
+La revisión independiente de solo lectura confirmó el flujo de la guardia, la carga de `/me` antes del catálogo y la redirección tras autenticar. TypeScript, la suite existente y las pruebas específicas de autenticación completaron correctamente; el build también finalizó correctamente. Se añadió prueba que rechaza catálogo anónimo antes de consultar su almacenamiento y pruebas del manejo de sesión expirada, contraseña incorrecta y sesión válida.

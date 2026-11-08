@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import {
-  ArrowLeft,
   ArrowRight,
   Check,
   Eye,
@@ -16,7 +15,7 @@ import { LEVELS, type Level } from "@shared/routine";
 
 export default function Access() {
   const [, navigate] = useLocation();
-  const { authenticate, plan } = useFit();
+  const { authenticate } = useFit();
   const [register, setRegister] = useState(
     new URLSearchParams(window.location.search).get("registro") === "1"
   );
@@ -44,7 +43,7 @@ export default function Access() {
             }
           : {}),
       });
-      navigate("/");
+      navigate("/planes", { replace: true });
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -55,9 +54,9 @@ export default function Access() {
     <div className="access-page">
       <div className="access-brand">
         <Brand />
-        <Link href="/" className="text-link">
-          <ArrowLeft size={15} /> Volver al programa
-        </Link>
+        <span className="secure-caption">
+          Inicia sesión o crea una cuenta para abrir tus planes.
+        </span>
       </div>
       <main className="access-main">
         <section className="access-story">
@@ -82,13 +81,10 @@ export default function Access() {
           </p>
           <div className="access-benefits">
             <span>
-              <Check size={16} /> Plan {plan.title} · seguimiento independiente
+              <Check size={16} /> Tus planes, bajo una sola cuenta
             </span>
             <span>
-              <Check size={16} />{" "}
-              {plan.mode === "straight"
-                ? "Referencias de tus láminas"
-                : "Videos de demostración"}
+              <Check size={16} /> Rutinas, descansos e historial personal
             </span>
             <span>
               <Check size={16} /> Progreso guardado solo para ti
@@ -97,7 +93,7 @@ export default function Access() {
           <div className="access-quote">
             “La constancia le gana
             <br />
-            al perfeccionismo.”<small>TU PLAN {plan.title.toUpperCase()}</small>
+            al perfeccionismo.”<small>RITMO FIT · TU ESPACIO PERSONAL</small>
           </div>
         </section>
         <section className="access-form-panel">
@@ -201,21 +197,23 @@ export default function Access() {
             </label>
             {register && (
               <>
-                {plan.mode === "supersets" && (
-                  <label>
-                    Tu punto de partida
-                    <select
-                      value={level}
-                      onChange={e => setLevel(e.target.value as Level)}
-                    >
-                      {Object.entries(LEVELS).map(([key, value]) => (
-                        <option key={key} value={key}>
-                          {value.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
+                <label>
+                  Nivel inicial para Adelgazar
+                  <select
+                    value={level}
+                    onChange={e => setLevel(e.target.value as Level)}
+                  >
+                    {Object.entries(LEVELS).map(([key, value]) => (
+                      <option key={key} value={key}>
+                        {value.label}
+                      </option>
+                    ))}
+                  </select>
+                  <small>
+                    Después de crear tu cuenta podrás elegir entre los planes
+                    disponibles.
+                  </small>
+                </label>
                 <label>
                   Fecha de inicio
                   <input
@@ -225,10 +223,8 @@ export default function Access() {
                     onChange={e => setStartDate(e.target.value)}
                   />
                   <small>
-                    {plan.mode === "straight"
-                      ? "Este plan tiene sesiones de lunes a viernes. "
-                      : "Este plan tiene sesiones de lunes a sábado. "}
-                    Elige un lunes para mantener su calendario.
+                    Fecha de inicio de Adelgazar. Elige un lunes para mantener
+                    su calendario; los demás planes configuran su propia fecha.
                   </small>
                 </label>
                 <p className="privacy-note">

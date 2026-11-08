@@ -122,6 +122,47 @@ describe("Ritmo Fit multi-plan validation", () => {
 });
 
 describe("Ritmo Fit multi-plan authorization", () => {
+  it("requires a signed-in account before returning the public catalog", async () => {
+    const { routes, router } = routeHarness();
+    let authCalls = 0;
+    let responseSent = false;
+    let forwardedError: unknown;
+    registerFitPlanRoutes(router as never, {
+      requireAuth: async () => {
+        authCalls += 1;
+        throw new Error("401:Debes iniciar sesión");
+      },
+      bodyOf: () => ({}),
+      fail: (status, message) => {
+        throw new Error(`${status}:${message}`);
+      },
+      toPublicFitUser: () => ({}) as never,
+      toPublicProgress: () => ({}) as never,
+      sanitizeProgress: () => ({
+        completedSets: [],
+        cardioDone: false,
+        warmupDone: false,
+        completedAt: null,
+      }),
+      hasPartialProgress: () => false,
+    });
+    const catalog = routes.find(
+      route => route.method === "GET" && route.path === "/plans"
+    );
+    expect(catalog).toBeDefined();
+    catalog!.handler(
+      {} as never,
+      { json: () => (responseSent = true) } as never,
+      (error: unknown) => {
+        forwardedError = error;
+      }
+    );
+    await new Promise(resolve => setImmediate(resolve));
+    expect(authCalls).toBe(1);
+    expect(responseSent).toBe(false);
+    expect(forwardedError).toBeInstanceOf(Error);
+  });
+
   it("rejects a normal user before touching admin storage routes", async () => {
     const { routes, router } = routeHarness();
     const failures: Array<{ status: number; message: string }> = [];

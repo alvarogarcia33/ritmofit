@@ -196,7 +196,7 @@ export default function Settings() {
             <p className="plan-settings-note">
               La fecha y el nivel pertenecen a {plan.title}. Cambiar de plan
               conserva el historial de los demás.{" "}
-              <Link href="/" className="text-link">
+              <Link href="/planes" className="text-link">
                 Ver mis planes →
               </Link>
             </p>

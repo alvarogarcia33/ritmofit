@@ -16,14 +16,14 @@ La app evoluciona de una rutina única a varios planes. El plan actual se identi
 
 React/Express existentes continúan en el mismo servidor y MySQL administrado. Un modelo compartido de plan envuelve las rutinas originales y admite ejercicios con cantidades específicas. Las APIs de autenticación actuales siguen intactas. Nuevas tablas de catálogo, inscripciones y progreso por plan se agregan de forma idempotente. Los datos actuales de `fit_progress` permanecen intactos y se tratan como Adelgazar; los demás programas se guardan con `(user_id, plan_id, day_key)`. No se elimina ni reemplaza la base existente. El catálogo conserva posteriores ediciones administrativas y valida IDs, colores, URLs, días y cantidades en servidor.
 
-Una API pública devuelve el catálogo publicado; la selección/inscripción requiere usuario y contraseña. Las APIs privadas aíslan datos por usuario autenticado y plan solicitado. Administración tiene vistas de usuarios filtradas por plan y gestión de catálogo: tarjetas, nombre, descripción, color, imagen, días y ejercicios. Los planes nuevos se pueden preparar en borrador antes de mostrarlos; los identificadores de ejercicios son estables para no alterar historias.
+El inicio de sesión o registro es la primera pantalla y la única ruta de la app disponible sin una cuenta autenticada. Tras autenticar, se abre la biblioteca de planes; entrenamiento, programa, historial, ajustes y administración requieren sesión. El servidor también protege el catálogo para que no se pueda listar por API sin autenticación. La sesión persistida permite volver a la app sin iniciar sesión repetidamente; al cerrar sesión, se regresa al acceso. Administración conserva además su control de rol. Las APIs privadas aíslan datos por usuario autenticado y plan solicitado. La administración tiene vistas de usuarios filtradas por plan y gestión de catálogo: tarjetas, nombre, descripción, color, imagen, días y ejercicios. Los planes nuevos se pueden preparar en borrador antes de mostrarlos; los identificadores de ejercicios son estables para no alterar historias.
 
 ## Estructura del proyecto
 
 - `shared/programs.ts`: tipos, catálogo inicial Adelgazar/Tonificar y helpers de dosificación, días, series y progreso esperado.
 - `shared/routine.ts` y `shared/video-alternatives.ts`: datos originales de Adelgazar, sin cambios de orden o cantidades.
 - `client/src/contexts/FitContext.tsx`: cuenta, catálogo, plan activo, inscripciones, progreso y selección persistente.
-- `client/src/pages/Plans.tsx`: pantalla inicial de selección y continuación.
+- `client/src/pages/Plans.tsx`: pantalla de selección y continuación mostrada después de autenticarse.
 - `client/src/pages/Home.tsx`: entrenamiento del plan seleccionado, series, demostraciones, reloj y estrellas.
 - `Program.tsx`, `Progress.tsx`, `Settings.tsx`: programa, historial y preferencias conscientes del plan.
 - `client/src/pages/PlanAdmin.tsx`: creación/edición de catálogo desde formularios, protegida por rol.

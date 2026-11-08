@@ -10,6 +10,7 @@ import {
 import {
   api,
   saveToken,
+  SESSION_EXPIRED_EVENT,
   type ContentOverride,
   type FitUser,
   type Progress,
@@ -53,19 +54,12 @@ interface FitContextValue {
   ) => Promise<Progress>;
 }
 const Context = createContext<FitContextValue | null>(null);
-const guestPlanKey = "ritmo-guest-plan";
-function guestSelection() {
-  try {
-    return localStorage.getItem(guestPlanKey) ?? LEGACY_PLAN_ID;
-  } catch {
-    return LEGACY_PLAN_ID;
-  }
-}
+const obsoleteGuestPlanKey = "ritmo-guest-plan";
 
 export function FitProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FitUser | null>(null);
   const [plans, setPlans] = useState<TrainingPlan[]>(DEFAULT_PLANS);
-  const [planId, setPlanId] = useState(guestSelection);
+  const [planId, setPlanId] = useState(LEGACY_PLAN_ID);
   const [enrollments, setEnrollments] = useState<PlanEnrollment[]>([]);
   const [progress, setProgress] = useState<Progress[]>([]);
   const [overrides, setOverrides] = useState<ContentOverride[]>([]);
@@ -96,11 +90,16 @@ export function FitProvider({ children }: { children: ReactNode }) {
     async (account: FitUser | null, targetEpoch: number) => {
       if (!account) {
         if (epoch.current === targetEpoch) {
+          saveToken(null);
+          try {
+            localStorage.removeItem(obsoleteGuestPlanKey);
+          } catch {}
           setEnrollments([]);
           setProgress([]);
-          const id = guestSelection();
-          active.current = id;
-          setPlanId(id);
+          setPlans([]);
+          setOverrides([]);
+          active.current = LEGACY_PLAN_ID;
+          setPlanId(LEGACY_PLAN_ID);
         }
         return;
       }
@@ -126,11 +125,16 @@ export function FitProvider({ children }: { children: ReactNode }) {
     setPlanLoading(true);
     setProgressReady(false);
     try {
-      await refreshPlans();
       const r = await api<{ user: FitUser | null }>("/me");
       if (epoch.current !== n) return;
       setUser(r.user);
-      await loadForAccount(r.user, n);
+      if (r.user) {
+        await refreshPlans();
+        await refreshContent();
+        await loadForAccount(r.user, n);
+      } else {
+        await loadForAccount(null, n);
+      }
     } catch (e) {
       if (epoch.current === n)
         setError(
@@ -142,13 +146,33 @@ export function FitProvider({ children }: { children: ReactNode }) {
         setPlanLoading(false);
       }
     }
-  }, [loadForAccount, refreshPlans]);
+  }, [loadForAccount, refreshContent, refreshPlans]);
   useEffect(() => {
     void refresh();
-    void refreshContent().catch(() => {});
-  }, [refresh, refreshContent]);
+  }, [refresh]);
+  useEffect(() => {
+    const expireSession = () => {
+      ++epoch.current;
+      saveToken(null);
+      setUser(null);
+      setProgress([]);
+      setEnrollments([]);
+      setPlans([]);
+      setOverrides([]);
+      setPlanId(LEGACY_PLAN_ID);
+      active.current = LEGACY_PLAN_ID;
+      setPlanLoading(false);
+      setProgressReady(false);
+      setLoading(false);
+      setError(null);
+    };
+    window.addEventListener(SESSION_EXPIRED_EVENT, expireSession);
+    return () =>
+      window.removeEventListener(SESSION_EXPIRED_EVENT, expireSession);
+  }, []);
   const authenticate = async (path: "/login" | "/register", body: unknown) => {
     const n = ++epoch.current;
+    setError(null);
     setPlanLoading(true);
     setProgressReady(false);
     try {
@@ -161,18 +185,15 @@ export function FitProvider({ children }: { children: ReactNode }) {
       setEnrollments([]);
       setUser(r.user);
       setError(null);
-      const chosen = guestSelection();
-      if (
-        path === "/register" &&
-        chosen !== LEGACY_PLAN_ID &&
-        plans.some(p => p.id === chosen)
-      ) {
-        await api(`/plans/${encodeURIComponent(chosen)}/enrollment`, {
-          method: "PUT",
-          body: { startDate: r.user.startDate },
-        });
-      }
+      await refreshPlans();
+      await refreshContent();
       await loadForAccount(r.user, n);
+    } catch (e) {
+      if (epoch.current === n)
+        setError(
+          e instanceof Error ? e.message : "No se pudo cargar tu acceso."
+        );
+      throw e;
     } finally {
       if (epoch.current === n) setPlanLoading(false);
     }
@@ -184,6 +205,13 @@ export function FitProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setProgress([]);
     setEnrollments([]);
+    setPlans([]);
+    setOverrides([]);
+    try {
+      localStorage.removeItem(obsoleteGuestPlanKey);
+    } catch {}
+    active.current = LEGACY_PLAN_ID;
+    setPlanId(LEGACY_PLAN_ID);
     setPlanLoading(false);
     setProgressReady(false);
   };
@@ -195,17 +223,9 @@ export function FitProvider({ children }: { children: ReactNode }) {
     id: string,
     preferences: Partial<Omit<PlanEnrollment, "planId">> = {}
   ) => {
+    if (!user) throw new Error("Inicia sesión para acceder a tus planes.");
     if (!plans.some(p => p.id === id))
       throw new Error("Este plan no está publicado en la biblioteca.");
-    if (!user) {
-      active.current = id;
-      setPlanId(id);
-      setProgress([]);
-      try {
-        localStorage.setItem(guestPlanKey, id);
-      } catch {}
-      return;
-    }
     const n = ++epoch.current;
     const previousReady = progressReady;
     let selectionSaved = false;

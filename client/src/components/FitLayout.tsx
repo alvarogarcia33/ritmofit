@@ -62,7 +62,7 @@ export function FitLayout({
   const signOut = async () => {
     try {
       await logout();
-      navigate("/");
+      navigate("/acceso", { replace: true });
       toast.success("Sesión cerrada.");
     } catch (err) {
       toast.error((err as Error).message);

@@ -32,6 +32,7 @@ export type ContentOverride = {
 };
 
 const TOKEN_KEY = "ritmo-session";
+export const SESSION_EXPIRED_EVENT = "ritmo-session-expired";
 export function saveToken(token: string | null) {
   try {
     token
@@ -66,6 +67,11 @@ export async function api<T>(
   const data = await response
     .json()
     .catch(() => ({ error: "No se pudo conectar con el servidor." }));
+  if (response.status === 401 && path !== "/login" && path !== "/register") {
+    saveToken(null);
+    if (typeof window !== "undefined")
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+  }
   if (!response.ok)
     throw new Error(
       data.error ?? "No se pudo guardar el cambio. Inténtalo de nuevo."
