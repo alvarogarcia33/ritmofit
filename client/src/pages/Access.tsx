@@ -16,7 +16,7 @@ import { LEVELS, type Level } from "@shared/routine";
 
 export default function Access() {
   const [, navigate] = useLocation();
-  const { authenticate } = useFit();
+  const { authenticate, plan } = useFit();
   const [register, setRegister] = useState(
     new URLSearchParams(window.location.search).get("registro") === "1"
   );
@@ -82,10 +82,13 @@ export default function Access() {
           </p>
           <div className="access-benefits">
             <span>
-              <Check size={16} /> Rutina original de 4 semanas
+              <Check size={16} /> Plan {plan.title} · seguimiento independiente
             </span>
             <span>
-              <Check size={16} /> Videos paso a paso
+              <Check size={16} />{" "}
+              {plan.mode === "straight"
+                ? "Referencias de tus láminas"
+                : "Videos de demostración"}
             </span>
             <span>
               <Check size={16} /> Progreso guardado solo para ti
@@ -94,7 +97,7 @@ export default function Access() {
           <div className="access-quote">
             “La constancia le gana
             <br />
-            al perfeccionismo.”<small>TU PROGRAMA PÉRDIDA DE PESO</small>
+            al perfeccionismo.”<small>TU PLAN {plan.title.toUpperCase()}</small>
           </div>
         </section>
         <section className="access-form-panel">
@@ -198,19 +201,21 @@ export default function Access() {
             </label>
             {register && (
               <>
-                <label>
-                  Tu punto de partida
-                  <select
-                    value={level}
-                    onChange={e => setLevel(e.target.value as Level)}
-                  >
-                    {Object.entries(LEVELS).map(([key, value]) => (
-                      <option key={key} value={key}>
-                        {value.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                {plan.mode === "supersets" && (
+                  <label>
+                    Tu punto de partida
+                    <select
+                      value={level}
+                      onChange={e => setLevel(e.target.value as Level)}
+                    >
+                      {Object.entries(LEVELS).map(([key, value]) => (
+                        <option key={key} value={key}>
+                          {value.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <label>
                   Fecha de inicio
                   <input
@@ -220,8 +225,10 @@ export default function Access() {
                     onChange={e => setStartDate(e.target.value)}
                   />
                   <small>
-                    El programa sigue lunes a sábado. Elige un lunes para
-                    mantener el split original.
+                    {plan.mode === "straight"
+                      ? "Este plan tiene sesiones de lunes a viernes. "
+                      : "Este plan tiene sesiones de lunes a sábado. "}
+                    Elige un lunes para mantener su calendario.
                   </small>
                 </label>
                 <p className="privacy-note">

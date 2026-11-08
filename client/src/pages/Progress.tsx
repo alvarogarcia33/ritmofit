@@ -22,24 +22,27 @@ import { FitLayout } from "@/components/FitLayout";
 import { EmptyState } from "@/components/FitWidgets";
 import { useFit } from "@/contexts/FitContext";
 import { dateLabel, dayDate } from "@/lib/fit";
-import { ROUTINE } from "@shared/routine";
+import { planDays, planTotalSessions } from "@shared/programs";
 
 export default function ProgressPage() {
-  const { user, loading, progress } = useFit();
+  const { planUser: user, loading, planLoading, progress, plan } = useFit();
+  const totalSessions = planTotalSessions(plan);
   const completed = progress.filter(p => p.completedAt).length;
   const totalSets = progress.reduce(
     (sum, p) => sum + p.completedSets.length,
     0
   );
-  const chart = [1, 2, 3, 4].map(week => ({
-    name: `Semana ${week}`,
-    sesiones: progress.filter(
-      p => p.dayKey.startsWith(`w${week}-`) && p.completedAt
-    ).length,
-    series: progress
-      .filter(p => p.dayKey.startsWith(`w${week}-`))
-      .reduce((sum, p) => sum + p.completedSets.length, 0),
-  }));
+  const chart = Array.from({ length: plan.weeks }, (_, i) => i + 1).map(
+    week => ({
+      name: `Semana ${week}`,
+      sesiones: progress.filter(
+        p => p.dayKey.startsWith(`w${week}-`) && p.completedAt
+      ).length,
+      series: progress
+        .filter(p => p.dayKey.startsWith(`w${week}-`))
+        .reduce((sum, p) => sum + p.completedSets.length, 0),
+    })
+  );
   const history = [...progress]
     .sort((a, b) => b.dayKey.localeCompare(a.dayKey))
     .filter(p => p.completedSets.length || p.cardioDone || p.warmupDone);
@@ -49,13 +52,13 @@ export default function ProgressPage() {
         <div>
           <span className="eyebrow">ESTO LO ESTÁS CONSTRUYENDO TÚ</span>
           <h1>Tu constancia se ve.</h1>
-          <p>No solo números. Cada registro es algo que hiciste por ti.</p>
+          <p>{plan.title} · cada registro corresponde solo a este plan.</p>
         </div>
-        <Link className="button secondary" href="/">
+        <Link className="button secondary" href="/entrenamiento">
           Volver a entrenar <ArrowRight size={16} />
         </Link>
       </section>
-      {loading ? (
+      {loading || planLoading ? (
         <div className="loading-panel">Cargando tu progreso…</div>
       ) : !user ? (
         <EmptyState
@@ -79,7 +82,7 @@ export default function ProgressPage() {
                 <span>Sesiones cumplidas</span>
                 <strong>
                   {completed}
-                  <small> / 24</small>
+                  <small> / {totalSessions}</small>
                 </strong>
               </div>
             </div>
@@ -102,7 +105,7 @@ export default function ProgressPage() {
               <div>
                 <span>Cumplimiento total</span>
                 <strong>
-                  {Math.round((completed / 24) * 100)}
+                  {Math.round((completed / totalSessions) * 100)}
                   <small>% del programa</small>
                 </strong>
               </div>
@@ -113,7 +116,10 @@ export default function ProgressPage() {
               <div className="section-heading">
                 <div>
                   <h2>Sesiones por semana</h2>
-                  <p>Tu objetivo: 6 sesiones cada semana.</p>
+                  <p>
+                    Tu objetivo en este plan: {planDays(plan, 1).length}{" "}
+                    sesiones por semana.
+                  </p>
                 </div>
                 <BarChart3 size={21} />
               </div>
@@ -135,7 +141,15 @@ export default function ProgressPage() {
                       tick={{ fill: "#8b8290", fontSize: 12 }}
                     />
                     <YAxis
-                      domain={[0, 6]}
+                      domain={[
+                        0,
+                        Math.max(
+                          ...Array.from(
+                            { length: plan.weeks },
+                            (_, i) => planDays(plan, i + 1).length
+                          )
+                        ),
+                      ]}
                       allowDecimals={false}
                       axisLine={false}
                       tickLine={false}
@@ -152,7 +166,7 @@ export default function ProgressPage() {
                     <Bar
                       dataKey="sesiones"
                       name="Sesiones completas"
-                      fill="#e9387a"
+                      fill={plan.color}
                       radius={[6, 6, 0, 0]}
                       barSize={36}
                     />
@@ -202,7 +216,7 @@ export default function ProgressPage() {
                     <Bar
                       dataKey="series"
                       name="Series realizadas"
-                      fill="#ef9cbc"
+                      fill={plan.color}
                       radius={[6, 6, 0, 0]}
                       barSize={36}
                     />
@@ -229,7 +243,7 @@ export default function ProgressPage() {
                 title="La primera estrella te espera."
                 text="Completa tu primera sesión y verás aquí tu historial. No se muestran datos de ejemplo."
                 action={
-                  <Link href="/" className="text-link">
+                  <Link href="/entrenamiento" className="text-link">
                     Ir a mi entrenamiento →
                   </Link>
                 }
@@ -237,15 +251,13 @@ export default function ProgressPage() {
             ) : (
               <div className="history-list">
                 {history.map(record => {
-                  const match = /w(\d)-d(\d)/.exec(record.dayKey)!;
+                  const match = /w(\d+)-d(\d)/.exec(record.dayKey)!;
                   const week = Number(match[1]);
                   const day = Number(match[2]);
-                  const routine = ROUTINE[week <= 2 ? "first" : "second"].find(
-                    d => d.day === day
-                  )!;
+                  const routine = planDays(plan, week).find(d => d.day === day);
                   return (
                     <Link
-                      href={`/?semana=${week}&dia=${day}`}
+                      href={`/entrenamiento?semana=${week}&dia=${day}`}
                       className="history-row"
                       key={record.dayKey}
                     >
@@ -259,15 +271,17 @@ export default function ProgressPage() {
                         )}
                       </span>
                       <div>
-                        <strong>{routine.focus}</strong>
+                        <strong>{routine?.focus ?? "Sesión registrada"}</strong>
                         <span>
                           Semana {week} ·{" "}
                           {dateLabel(dayDate(user.startDate, week, day), true)}
                         </span>
                       </div>
                       <span className="history-series">
-                        {record.completedSets.length} series · cardio{" "}
-                        {record.cardioDone ? "realizado" : "pendiente"}
+                        {record.completedSets.length} series
+                        {plan.mode === "supersets"
+                          ? ` · cardio ${record.cardioDone ? "realizado" : "pendiente"}`
+                          : " registradas"}
                       </span>
                       <span
                         className={`status-pill ${record.completedAt ? "complete" : "pending"}`}

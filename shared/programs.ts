@@ -1,0 +1,407 @@
+import {
+  LEVELS,
+  ROUTINE,
+  type Exercise,
+  type Level,
+  type RoutineDay,
+} from "./routine";
+
+export const LEGACY_PLAN_ID = "adelgazar";
+
+export type TrainingPlan = {
+  id: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  color: string;
+  coverImage: string;
+  weeks: number;
+  mode: "supersets" | "straight";
+  restSeconds: number;
+  published: boolean;
+  sourceLabel: string;
+  sourceUrl?: string;
+  notes: string[];
+  routine: { first: RoutineDay[]; second: RoutineDay[] };
+};
+
+export type PlanEnrollment = {
+  planId: string;
+  startDate: string;
+  level: Level;
+  restSeconds: number;
+};
+
+const toneSource = (day: number) => `/plans/tonificar/day-${day}.webp`;
+function toneExercise(
+  day: number,
+  index: number,
+  name: string,
+  reps: string,
+  tips: string,
+  seconds?: number
+): Exercise {
+  return {
+    id: `tone-d${day}-e${index}`,
+    name,
+    videoUrl: "",
+    thumbnail: `/plans/tonificar/d${day}-e${index}.webp`,
+    sourceImage: toneSource(day),
+    block: 1,
+    sets: 3,
+    reps,
+    ...(seconds ? { seconds } : {}),
+    tips,
+  };
+}
+const TONE_DAYS: RoutineDay[] = [
+  {
+    day: 1,
+    label: "Lunes",
+    focus: "Glúteos y femorales",
+    subtitle:
+      "Seis ejercicios de la lámina original. Controla el movimiento y la carga.",
+    page: 0,
+    sourceImage: toneSource(1),
+    exercises: [
+      toneExercise(
+        1,
+        1,
+        "Hip thrust",
+        "10 repeticiones",
+        "La lámina indica subir el peso en cada serie. Ajusta la carga con un profesional; no comprometas la técnica."
+      ),
+      toneExercise(
+        1,
+        2,
+        "Búlgaras",
+        "10 repeticiones por pierna",
+        "Con un peso sostenible, según la lámina. Completa ambas piernas antes de marcar la serie."
+      ),
+      toneExercise(
+        1,
+        3,
+        "Peso muerto",
+        "10 repeticiones",
+        "La fuente indica subir el peso en cada serie. Mantén una técnica controlada y una carga adecuada para ti."
+      ),
+      toneExercise(
+        1,
+        4,
+        "Patada en polea a 45°",
+        "15 repeticiones por pierna",
+        "La fuente indica subir el peso en cada serie. Completa ambas piernas y evita compensar con la espalda."
+      ),
+      toneExercise(
+        1,
+        5,
+        "Femorales",
+        "10 pesadas + 10 bajando el peso a la mitad",
+        "La lámina indica 10 repeticiones pesadas más 10 con la mitad de peso. Confirma la carga y esta técnica de reducción con tu profesional."
+      ),
+      toneExercise(
+        1,
+        6,
+        "Plancha frontal",
+        "45 segundos",
+        "Mantén la posición controlada por 45 segundos. Tres series; detente ante dolor o pérdida de postura.",
+        45
+      ),
+    ],
+  },
+  {
+    day: 2,
+    label: "Martes",
+    focus: "Espalda y bíceps",
+    subtitle:
+      "Cinco ejercicios. Completa tres series por ejercicio con un peso sostenible.",
+    page: 0,
+    sourceImage: toneSource(2),
+    exercises: [
+      toneExercise(
+        2,
+        1,
+        "Jalón de polea",
+        "10 repeticiones",
+        "Con un peso sostenible, según la lámina."
+      ),
+      toneExercise(
+        2,
+        2,
+        "Remo con mancuerna",
+        "10 repeticiones",
+        "Con un peso sostenible, según la lámina. Controla el tronco durante el remo."
+      ),
+      toneExercise(
+        2,
+        3,
+        "Pull over con cuerda",
+        "10 repeticiones",
+        "Con un peso sostenible, según la lámina."
+      ),
+      toneExercise(
+        2,
+        4,
+        "Vuelos laterales",
+        "10 repeticiones",
+        "Con un peso sostenible, según la lámina. Evita impulsarte para levantar la carga."
+      ),
+      toneExercise(
+        2,
+        5,
+        "Martillo (bíceps)",
+        "10 repeticiones",
+        "Con un peso sostenible, según la lámina."
+      ),
+    ],
+  },
+  {
+    day: 3,
+    label: "Miércoles",
+    focus: "Cuádriceps y pantorrillas",
+    subtitle:
+      "Seis ejercicios con cantidades específicas y una plancha de 45 segundos.",
+    page: 0,
+    sourceImage: toneSource(3),
+    exercises: [
+      toneExercise(
+        3,
+        1,
+        "Prensa de piernas",
+        "10 repeticiones",
+        "La lámina indica subir el peso en cada serie; usa una carga que puedas controlar."
+      ),
+      toneExercise(
+        3,
+        2,
+        "Sentadillas libres",
+        "10 repeticiones",
+        "La lámina indica subir el peso en cada serie. No sacrifiques el control de la postura."
+      ),
+      toneExercise(
+        3,
+        3,
+        "Zancadas",
+        "10 repeticiones por pierna",
+        "En la lámina figura «Sancadas». Con un peso sostenible. Completa ambas piernas antes de marcar la serie."
+      ),
+      toneExercise(
+        3,
+        4,
+        "Sillón de cuádriceps",
+        "10 repeticiones + 1 repetición al fallo",
+        "Se transcribe la indicación de la lámina. El trabajo al fallo requiere supervisión y no debe continuar ante dolor ni pérdida de técnica."
+      ),
+      toneExercise(
+        3,
+        5,
+        "Plancha frontal",
+        "45 segundos",
+        "Tres series de 45 segundos, como indica la lámina. Mantén una posición que puedas controlar.",
+        45
+      ),
+      toneExercise(
+        3,
+        6,
+        "Elevación de pantorrillas",
+        "15 repeticiones",
+        "Con un peso sostenible, según la lámina."
+      ),
+    ],
+  },
+  {
+    day: 4,
+    label: "Jueves",
+    focus: "Hombro, pecho y tríceps",
+    subtitle: "Cinco ejercicios con tres series de diez repeticiones.",
+    page: 0,
+    sourceImage: toneSource(4),
+    exercises: [
+      toneExercise(
+        4,
+        1,
+        "Press militar",
+        "10 repeticiones",
+        "Con un peso sostenible. La ilustración muestra la variante sentada con barra."
+      ),
+      toneExercise(
+        4,
+        2,
+        "Vuelos frontales",
+        "10 repeticiones",
+        "Con un peso sostenible, según la lámina."
+      ),
+      toneExercise(
+        4,
+        3,
+        "Apertura de pecho",
+        "10 repeticiones",
+        "Con un peso sostenible. La ilustración muestra la variante en máquina."
+      ),
+      toneExercise(
+        4,
+        4,
+        "Vuelos laterales",
+        "10 repeticiones",
+        "Con un peso sostenible, según la lámina."
+      ),
+      toneExercise(
+        4,
+        5,
+        "Extensión de tríceps",
+        "10 repeticiones",
+        "Con un peso sostenible. La ilustración muestra la extensión en polea."
+      ),
+    ],
+  },
+  {
+    day: 5,
+    label: "Viernes",
+    focus: "Pierna completa",
+    subtitle:
+      "Seis ejercicios para cerrar la semana. No hay sesión en las láminas para sábado o domingo.",
+    page: 0,
+    sourceImage: toneSource(5),
+    exercises: [
+      toneExercise(
+        5,
+        1,
+        "Sentadillas libres",
+        "10 repeticiones",
+        "La lámina indica subir el peso en cada serie; adapta la carga a tu técnica."
+      ),
+      toneExercise(
+        5,
+        2,
+        "Peso muerto",
+        "10 repeticiones",
+        "La lámina indica subir el peso en cada serie. Mantén el movimiento controlado."
+      ),
+      toneExercise(
+        5,
+        3,
+        "Hip thrust",
+        "15 repeticiones",
+        "La lámina indica subir el peso en cada serie. Esta sesión tiene 15 repeticiones, no las 10 del lunes."
+      ),
+      toneExercise(
+        5,
+        4,
+        "Aductores",
+        "15 repeticiones",
+        "Con un peso sostenible. Se conserva el nombre indicado en la lámina; confirma el ajuste de la máquina con tu profesional."
+      ),
+      toneExercise(
+        5,
+        5,
+        "Abductores",
+        "15 repeticiones",
+        "Con un peso sostenible. Se conserva el nombre indicado en la lámina."
+      ),
+      toneExercise(
+        5,
+        6,
+        "Pantorrillas de pie",
+        "15 repeticiones",
+        "Con un peso sostenible, según la lámina."
+      ),
+    ],
+  },
+];
+
+export const DEFAULT_PLANS: TrainingPlan[] = [
+  {
+    id: LEGACY_PLAN_ID,
+    title: "Adelgazar",
+    subtitle: "Fuerza + movimiento",
+    description:
+      "Tu programa original de Pérdida de Peso: super series, tres niveles y cardio. El historial que ya construiste sigue aquí.",
+    color: "#e9387a",
+    coverImage: "/exercises/program-banner.png",
+    weeks: 4,
+    mode: "supersets",
+    restSeconds: 120,
+    published: true,
+    sourceLabel: "PDF Pérdida de Peso",
+    sourceUrl: "/programa-perdida-de-peso.pdf",
+    notes: [],
+    routine: ROUTINE,
+  },
+  {
+    id: "tonificar",
+    title: "Tonificar",
+    subtitle: "Fuerza + control",
+    description:
+      "Las cinco láminas que compartiste, organizadas para seguir cada serie, descansar y construir constancia. De lunes a viernes, con las cantidades de cada imagen.",
+    color: "#7c4ed4",
+    coverImage: "/plans/tonificar/d1-e1.webp",
+    weeks: 4,
+    mode: "straight",
+    restSeconds: 90,
+    published: true,
+    sourceLabel: "Cinco láminas aportadas",
+    notes: [
+      "Las láminas indican una semana de lunes a viernes. Las cuatro semanas de seguimiento repiten esa estructura como organización de la app; la fuente no prescribe la duración del ciclo.",
+      "Las imágenes no indican descansos. El reloj parte en 90 segundos como opción configurable de la app, no como instrucción de la fuente. No se añade cardio obligatorio ni niveles.",
+      "Las indicaciones de carga progresiva, reducción de peso y trabajo al fallo se transcriben del material. Confirma su aplicación con tu profesional y detente ante dolor o pérdida de técnica.",
+    ],
+    routine: { first: TONE_DAYS, second: TONE_DAYS },
+  },
+];
+
+export function planDays(plan: TrainingPlan, week: number): RoutineDay[] {
+  return plan.routine[week <= 2 ? "first" : "second"];
+}
+export function planDay(plan: TrainingPlan, week: number, day: number) {
+  return planDays(plan, week).find(d => d.day === day);
+}
+export function planConfig(plan: TrainingPlan, level: Level) {
+  if (plan.mode === "supersets") return LEVELS[level];
+  return {
+    label: "Series por ejercicio",
+    rounds: 3,
+    reps: "Según ejercicio",
+    restSeconds: plan.restSeconds,
+    cardioMinutes: 0,
+    blocks: 1,
+  };
+}
+export function exerciseSets(
+  plan: TrainingPlan,
+  exercise: Exercise,
+  level: Level
+): number {
+  return plan.mode === "supersets"
+    ? LEVELS[level].rounds
+    : (exercise.sets ?? 3);
+}
+export function plannedExercises(
+  plan: TrainingPlan,
+  week: number,
+  day: number,
+  level: Level
+): Exercise[] {
+  const exercises = planDay(plan, week, day)?.exercises ?? [];
+  return plan.mode === "supersets"
+    ? exercises.filter(e => e.block <= LEVELS[level].blocks)
+    : exercises;
+}
+export function requiredPlanSets(
+  plan: TrainingPlan,
+  week: number,
+  day: number,
+  level: Level
+): string[] {
+  return plannedExercises(plan, week, day, level).flatMap(e =>
+    Array.from(
+      { length: exerciseSets(plan, e, level) },
+      (_, i) => `${e.id}:${i + 1}`
+    )
+  );
+}
+export function planTotalSessions(plan: TrainingPlan): number {
+  return Array.from(
+    { length: plan.weeks },
+    (_, i) => planDays(plan, i + 1).length
+  ).reduce((a, b) => a + b, 0);
+}

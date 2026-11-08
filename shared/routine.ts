@@ -45,6 +45,10 @@ export type Exercise = {
   block: number;
   tips: string;
   videoAlternative?: VideoAlternative;
+  sets?: number;
+  reps?: string;
+  seconds?: number;
+  sourceImage?: string;
 };
 
 export type VideoAlternative = {
@@ -63,6 +67,7 @@ export type RoutineDay = {
   subtitle: string;
   page: number;
   exercises: Exercise[];
+  sourceImage?: string;
 };
 
 export const WARMUP_LOWER = "https://vimeo.com/755401745";

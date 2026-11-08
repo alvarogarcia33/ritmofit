@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type CSSProperties } from "react";
 import { Link, useLocation } from "wouter";
 import {
   Bell,
@@ -21,7 +21,8 @@ import { LEVELS } from "@shared/routine";
 import { toast } from "sonner";
 
 const links = [
-  { to: "/", label: "Mi entrenamiento", icon: Dumbbell },
+  { to: "/", label: "Mis planes", icon: LayoutDashboard },
+  { to: "/entrenamiento", label: "Mi entrenamiento", icon: Dumbbell },
   { to: "/programa", label: "Mi programa", icon: CalendarDays },
   { to: "/progreso", label: "Mi progreso", icon: TrendingUp },
   { to: "/ajustes", label: "Mi cuenta", icon: Settings2 },
@@ -45,10 +46,12 @@ export function FitLayout({
   title?: string;
 }) {
   const [location, navigate] = useLocation();
-  const { user, progress, logout, error, refresh } = useFit();
+  const { user, planUser, enrollment, plan, progress, logout, error, refresh } =
+    useFit();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifications, setNotifications] = useState(false);
-  const pending = user ? overdueDays(user, progress) : [];
+  const pending =
+    planUser && enrollment ? overdueDays(planUser, progress, plan) : [];
   const initials =
     user?.fullName
       .split(" ")
@@ -66,7 +69,20 @@ export function FitLayout({
     }
   };
   return (
-    <div className="app-shell">
+    <div
+      className="app-shell"
+      data-plan={plan.id}
+      data-mode={plan.mode}
+      style={
+        {
+          "--pink": plan.color,
+          "--pink-dark": `color-mix(in srgb, ${plan.color} 80%, #1b1024)`,
+          "--blush": `color-mix(in srgb, ${plan.color} 7%, white)`,
+          "--primary": plan.color,
+          "--ring": plan.color,
+        } as CSSProperties
+      }
+    >
       {mobileOpen && (
         <button
           className="sidebar-backdrop"
@@ -118,13 +134,13 @@ export function FitLayout({
             <Sparkles size={12} /> TU PROGRAMA
           </span>
           <h3>
-            Un cambio real.
+            {plan.title}.
             <br />A tu ritmo.
           </h3>
           <p>
-            4 semanas para construir
+            {plan.weeks} semanas de seguimiento.
             <br />
-            una mejor versión de ti.
+            Tu historia sigue aquí.
           </p>
           <Link href="/programa">
             Ver mi programa <span>↗</span>
@@ -132,7 +148,7 @@ export function FitLayout({
         </div>
         <div className="sidebar-bottom">
           <a
-            href="/programa-perdida-de-peso.pdf"
+            href={plan.sourceUrl ?? "/programa"}
             target="_blank"
             rel="noreferrer"
             className="help-link"
@@ -146,7 +162,11 @@ export function FitLayout({
                 {user ? user.fullName.split(" ")[0] : "Entrena a tu ritmo"}
               </strong>
               <span>
-                {user ? LEVELS[user.level].label : "Tu constancia cuenta"}
+                {user
+                  ? plan.mode === "supersets"
+                    ? LEVELS[planUser?.level ?? user.level].label
+                    : plan.title
+                  : "Tu constancia cuenta"}
               </span>
             </div>
             {user && (
@@ -245,7 +265,9 @@ export function FitLayout({
         <main className="page-content">{children}</main>
         <footer className="app-footer">
           <span>ritmofit · La constancia le gana al perfeccionismo.</span>
-          <span>Basado en tu programa Pérdida de Peso</span>
+          <span>
+            {plan.title} · {plan.sourceLabel}
+          </span>
         </footer>
       </div>
     </div>

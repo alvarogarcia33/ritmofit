@@ -16,13 +16,25 @@ export function TimerCard({
   restSeconds,
   cardioMinutes,
   onCardioComplete,
+  exerciseSeconds,
+  exerciseLabel,
 }: {
   restSeconds: number;
   cardioMinutes: number;
   onCardioComplete?: () => void;
+  exerciseSeconds?: number;
+  exerciseLabel?: string;
 }) {
-  const [mode, setMode] = useState<"rest" | "cardio">("rest");
-  const initial = mode === "rest" ? restSeconds : cardioMinutes * 60;
+  const [mode, setMode] = useState<"rest" | "cardio" | "exercise">("rest");
+  const initial =
+    mode === "rest"
+      ? restSeconds
+      : mode === "exercise"
+        ? (exerciseSeconds ?? 45)
+        : cardioMinutes * 60;
+  useEffect(() => {
+    if (exerciseSeconds) setMode("exercise");
+  }, [exerciseSeconds, exerciseLabel]);
   const [remaining, setRemaining] = useState(initial);
   const [running, setRunning] = useState(false);
   const deadline = useRef(0);
@@ -70,12 +82,22 @@ export function TimerCard({
         >
           Descanso
         </button>
-        <button
-          className={mode === "cardio" ? "selected" : ""}
-          onClick={() => setMode("cardio")}
-        >
-          Cardio
-        </button>
+        {cardioMinutes > 0 && (
+          <button
+            className={mode === "cardio" ? "selected" : ""}
+            onClick={() => setMode("cardio")}
+          >
+            Cardio
+          </button>
+        )}
+        {exerciseSeconds && (
+          <button
+            className={mode === "exercise" ? "selected" : ""}
+            onClick={() => setMode("exercise")}
+          >
+            {exerciseLabel ?? "Ejercicio"}
+          </button>
+        )}
       </div>
       <div className={`timer-value ${running ? "ticking" : ""}`}>
         {String(Math.floor(remaining / 60)).padStart(2, "0")}
@@ -86,8 +108,10 @@ export function TimerCard({
         {finished
           ? "Tiempo cumplido. ¿Lista para seguir?"
           : mode === "rest"
-            ? "Entre super series. Respira e hidrátate."
-            : "Usa una intensidad adecuada para ti."}
+            ? "Entre series o ejercicios. Respira e hidrátate."
+            : mode === "exercise"
+              ? "Controla tu postura. Al terminar, marca tu serie."
+              : "Usa una intensidad adecuada para ti."}
       </p>
       <div className="timer-actions">
         <button className="button secondary timer-start" onClick={toggle}>
@@ -128,7 +152,7 @@ export function VideoModal({
 }: {
   exercise: Pick<
     Exercise,
-    "name" | "videoUrl" | "tips" | "videoAlternative"
+    "name" | "videoUrl" | "tips" | "videoAlternative" | "sourceImage"
   > | null;
   onClose: () => void;
 }) {
@@ -169,9 +193,11 @@ export function VideoModal({
         <div className="modal-header">
           <div>
             <span className="eyebrow">
-              {alternative
-                ? "DEMOSTRACIÓN ALTERNATIVA"
-                : "DEMOSTRACIÓN ORIGINAL"}
+              {exercise.sourceImage
+                ? "REFERENCIA DE TU LÁMINA"
+                : alternative
+                  ? "DEMOSTRACIÓN ALTERNATIVA"
+                  : "DEMOSTRACIÓN ORIGINAL"}
             </span>
             <h2 id="video-title">{exercise.name}</h2>
           </div>
@@ -184,8 +210,19 @@ export function VideoModal({
             <X size={23} />
           </button>
         </div>
-        <div className="video-frame">
-          {embed ? (
+        <div
+          className={
+            exercise.sourceImage && !embed
+              ? "exercise-reference-frame"
+              : "video-frame"
+          }
+        >
+          {exercise.sourceImage && !embed ? (
+            <img
+              src={exercise.sourceImage}
+              alt={`Lámina original para consultar ${exercise.name}`}
+            />
+          ) : embed ? (
             <iframe
               src={embed}
               title={`Cómo hacer ${exercise.name}`}
@@ -219,6 +256,17 @@ export function VideoModal({
             </p>
           )}
           <div className="video-links">
+            {exercise.sourceImage && (
+              <a
+                href={exercise.sourceImage}
+                target="_blank"
+                rel="noreferrer"
+                className="text-link"
+              >
+                Abrir lámina original a tamaño completo{" "}
+                <ExternalLink size={15} />
+              </a>
+            )}
             {alternative && (
               <a
                 href={alternative.watchUrl}
@@ -230,21 +278,28 @@ export function VideoModal({
                 <ExternalLink size={15} />
               </a>
             )}
-            <a
-              href={exercise.videoUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-link original-video-link"
-            >
-              Abrir video original del PDF en Vimeo <ExternalLink size={15} />
-            </a>
+            {exercise.videoUrl && (
+              <a
+                href={exercise.videoUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-link original-video-link"
+              >
+                {exercise.videoUrl.includes("vimeo.com")
+                  ? "Abrir video original en Vimeo"
+                  : "Abrir demostración externa"}{" "}
+                <ExternalLink size={15} />
+              </a>
+            )}
           </div>
           <small>
-            {alternative && !alternative.embedUrl
-              ? "El video se abre en YouTube porque no admite inserción; el Vimeo original se conserva como referencia. "
-              : alternative
-                ? "La alternativa usa el reproductor oficial del proveedor; el enlace Vimeo original se conserva como referencia. "
-                : "Vimeo puede restringir la reproducción integrada según los permisos del propietario. "}
+            {exercise.sourceImage && !embed
+              ? "Las ilustraciones se conservan del material que compartiste. "
+              : alternative && !alternative.embedUrl
+                ? "El video se abre en YouTube porque no admite inserción; el Vimeo original se conserva como referencia. "
+                : alternative
+                  ? "La alternativa usa el reproductor oficial del proveedor; el enlace Vimeo original se conserva como referencia. "
+                  : "Vimeo puede restringir la reproducción integrada según los permisos del propietario. "}
             Ante dolor, mareo o molestias, detén la sesión.
           </small>
         </div>

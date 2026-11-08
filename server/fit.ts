@@ -30,7 +30,10 @@ import {
   updateFitUser,
   upsertFitContent,
 } from "./fit-db";
+import { initializeFitPlanDatabase, seedDefaultFitPlans } from "./fit-plan-db";
+import { registerFitPlanRoutes } from "./fit-plans";
 import express from "express";
+import { DEFAULT_PLANS } from "../shared/programs";
 
 const scryptAsync = promisify(scrypt) as (
   password: string | Buffer,
@@ -69,7 +72,7 @@ function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function fail(status: number, message: string): never {
+export function fail(status: number, message: string): never {
   throw new FitHttpError(status, message);
 }
 
@@ -290,7 +293,7 @@ function parseCompletedSets(value: unknown): string[] {
   return [];
 }
 
-function toPublicProgress(
+export function toPublicProgress(
   row: FitProgressRow,
   fallbackLevel: FitLevel
 ): PublicFitProgress {
@@ -390,7 +393,9 @@ function requestToken(req: Request): string | null {
   return parseCookieHeader(req.headers.cookie).get(SESSION_COOKIE) ?? null;
 }
 
-async function authenticate(req: Request): Promise<Authenticated | null> {
+export async function authenticate(
+  req: Request
+): Promise<Authenticated | null> {
   const token = requestToken(req);
   if (!token) return null;
   const tokenHash = sha256Token(token);
@@ -398,7 +403,7 @@ async function authenticate(req: Request): Promise<Authenticated | null> {
   return user ? { user, tokenHash } : null;
 }
 
-async function requireAuth(req: Request): Promise<Authenticated> {
+export async function requireAuth(req: Request): Promise<Authenticated> {
   const auth = await authenticate(req);
   if (!auth) fail(401, "Debes iniciar sesión");
   return auth;
@@ -486,7 +491,7 @@ function asyncRoute(
   };
 }
 
-function bodyOf(req: Request): JsonObject {
+export function bodyOf(req: Request): JsonObject {
   if (!isObject(req.body)) fail(400, "El cuerpo JSON es obligatorio");
   return req.body;
 }
@@ -524,7 +529,7 @@ function setSort(a: string, b: string): number {
   return aExercise - bExercise || aRound - bRound;
 }
 
-function sanitizeProgress(
+export function sanitizeProgress(
   dayKey: string,
   level: FitLevel,
   value: unknown
@@ -587,7 +592,7 @@ function sanitizeProgress(
   };
 }
 
-function hasPartialProgress(row: FitProgressRow): boolean {
+export function hasPartialProgress(row: FitProgressRow): boolean {
   return (
     row.completed_at === null &&
     (parseCompletedSets(row.completed_sets).length > 0 ||
@@ -643,6 +648,8 @@ async function getContentResponse(): Promise<
 
 export async function registerFitRoutes(app: Express): Promise<void> {
   await initializeFitDatabase();
+  await initializeFitPlanDatabase();
+  await seedDefaultFitPlans(DEFAULT_PLANS);
   await purgeExpiredFitSessions();
 
   const router = express.Router();
@@ -653,6 +660,16 @@ export async function registerFitRoutes(app: Express): Promise<void> {
       return;
     }
     next();
+  });
+
+  registerFitPlanRoutes(router, {
+    requireAuth,
+    bodyOf,
+    fail,
+    toPublicFitUser,
+    toPublicProgress,
+    sanitizeProgress,
+    hasPartialProgress,
   });
 
   router.get(

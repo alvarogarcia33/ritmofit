@@ -12,6 +12,7 @@ import {
   Clock3,
   ExternalLink,
   FilePenLine,
+  Library,
   LockKeyhole,
   Mail,
   RefreshCw,
@@ -37,16 +38,32 @@ import { FitLayout } from "@/components/FitLayout";
 import { useFit } from "@/contexts/FitContext";
 import {
   api,
-  dateLabel,
   dayDate,
   type ContentOverride,
   type FitUser,
   type Progress,
 } from "@/lib/fit";
+import {
+  LEGACY_PLAN_ID,
+  planDays,
+  type PlanEnrollment,
+  type TrainingPlan,
+} from "@shared/programs";
 import { ROUTINE, type RoutineDay } from "@shared/routine";
 import "../admin.css";
 
-type UserDetail = { user: FitUser; progress: Progress[] };
+type UserDetail = {
+  user: FitUser;
+  progress: Progress[];
+  enrollment: PlanEnrollment | null;
+  plan: TrainingPlan;
+};
+
+type LegacyUserDetail = {
+  user: FitUser;
+  progress: Progress[];
+};
+
 type ContentForm = Pick<ContentOverride, "name" | "videoUrl" | "tips">;
 type DailyHistory = {
   key: string;
@@ -61,14 +78,6 @@ type DailyHistory = {
 };
 
 const EMPTY_FORM: ContentForm = { name: "", videoUrl: "", tips: "" };
-const DAY_LABELS = [
-  "Lunes",
-  "Martes",
-  "Miércoles",
-  "Jueves",
-  "Viernes",
-  "Sábado",
-];
 
 export default function Admin() {
   const { user, loading } = useFit();
@@ -89,8 +98,14 @@ export default function Admin() {
 }
 
 function AdminWorkspace() {
-  const { overrides, refreshContent } = useFit();
+  const { overrides, plans, refreshContent } = useFit();
   const [activeTab, setActiveTab] = useState<"users" | "content">("users");
+  const [catalogPlans, setCatalogPlans] = useState<TrainingPlan[]>(plans);
+  const [plansLoading, setPlansLoading] = useState(true);
+  const [plansError, setPlansError] = useState<string | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState(
+    plans[0]?.id ?? LEGACY_PLAN_ID
+  );
   const [users, setUsers] = useState<FitUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
   const [usersError, setUsersError] = useState<string | null>(null);
@@ -113,7 +128,28 @@ function AdminWorkspace() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedContent, setSavedContent] = useState(false);
 
-  const isAdmin = true;
+  const loadPlans = useCallback(async () => {
+    setPlansLoading(true);
+    setPlansError(null);
+    try {
+      const result = await api<{ plans: TrainingPlan[] }>("/admin/plans");
+      setCatalogPlans(result.plans);
+      setSelectedPlanId(current =>
+        result.plans.some(item => item.id === current)
+          ? current
+          : (result.plans[0]?.id ?? LEGACY_PLAN_ID)
+      );
+    } catch (error) {
+      setCatalogPlans(plans);
+      setPlansError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo cargar la biblioteca administrativa."
+      );
+    } finally {
+      setPlansLoading(false);
+    }
+  }, [plans]);
 
   const loadUsers = useCallback(async () => {
     setUsersLoading(true);
@@ -150,41 +186,64 @@ function AdminWorkspace() {
   }, [refreshContent]);
 
   useEffect(() => {
-    if (!isAdmin) return;
+    void loadPlans();
     void loadUsers();
     void loadContent();
-  }, [isAdmin, loadContent, loadUsers]);
+  }, [loadContent, loadPlans, loadUsers]);
 
-  useEffect(() => {
-    if (!selectedUserId) {
+  const loadDetail = useCallback(async () => {
+    if (!selectedUserId || !selectedPlanId) {
       setSelectedDetail(null);
       setDetailError(null);
       return;
     }
-    let cancelled = false;
     setDetailLoading(true);
     setDetailError(null);
-    api<UserDetail>(`/admin/users/${selectedUserId}`)
-      .then(result => {
-        if (!cancelled) setSelectedDetail(result);
-      })
-      .catch(error => {
-        if (!cancelled) {
-          setSelectedDetail(null);
-          setDetailError(
-            error instanceof Error
-              ? error.message
-              : "No se pudo cargar el detalle del usuario."
+    setSelectedDetail(null);
+    try {
+      const result = await api<UserDetail>(
+        `/admin/users/${selectedUserId}/plan/${encodeURIComponent(selectedPlanId)}`
+      );
+      setSelectedDetail(result);
+    } catch (error) {
+      // Keep the original endpoint usable while the legacy plan is migrated.
+      if (selectedPlanId === LEGACY_PLAN_ID) {
+        try {
+          const legacy = await api<LegacyUserDetail>(
+            `/admin/users/${selectedUserId}`
           );
+          const legacyPlan =
+            catalogPlans.find(item => item.id === LEGACY_PLAN_ID) ?? plans[0];
+          if (legacyPlan) {
+            setSelectedDetail({
+              ...legacy,
+              plan: legacyPlan,
+              enrollment: {
+                planId: LEGACY_PLAN_ID,
+                startDate: legacy.user.startDate,
+                level: legacy.user.level,
+                restSeconds: legacyPlan.restSeconds,
+              },
+            });
+            return;
+          }
+        } catch {
+          // Use the original error below for a single, useful message.
         }
-      })
-      .finally(() => {
-        if (!cancelled) setDetailLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [detailReload, selectedUserId]);
+      }
+      setDetailError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo cargar el detalle del usuario para este plan."
+      );
+    } finally {
+      setDetailLoading(false);
+    }
+  }, [catalogPlans, plans, selectedPlanId, selectedUserId]);
+
+  useEffect(() => {
+    void loadDetail();
+  }, [detailReload, loadDetail]);
 
   const filteredUsers = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -212,8 +271,9 @@ function AdminWorkspace() {
     : undefined;
 
   useEffect(() => {
-    if (selectedExercise && selectedExercise.id !== exerciseId)
+    if (selectedExercise && selectedExercise.id !== exerciseId) {
       setExerciseId(selectedExercise.id);
+    }
   }, [exerciseId, selectedExercise]);
 
   useEffect(() => {
@@ -244,10 +304,7 @@ function AdminWorkspace() {
     try {
       await api<{ success: true }>(
         `/admin/content/${encodeURIComponent(selectedExercise.id)}`,
-        {
-          method: "PUT",
-          body: contentForm,
-        }
+        { method: "PUT", body: contentForm }
       );
       await refreshContent();
       setSavedContent(true);
@@ -276,6 +333,10 @@ function AdminWorkspace() {
     0
   );
   const activeAccounts = users.filter(item => Boolean(item.lastLogin)).length;
+  const selectedPlan =
+    selectedDetail?.plan ??
+    catalogPlans.find(item => item.id === selectedPlanId) ??
+    null;
 
   return (
     <div className="admin-page">
@@ -283,19 +344,24 @@ function AdminWorkspace() {
         <div>
           <span className="eyebrow">PANEL DE CONTROL</span>
           <h1>
-            Administración{" "}
+            Administración
             <span className="admin-title-mark">
               <ShieldCheck size={22} />
             </span>
           </h1>
           <p>
-            Seguimiento real de la constancia y del contenido original de Ritmo
+            Seguimiento real por plan y edición cuidada del contenido de Ritmo
             Fit.
           </p>
         </div>
-        <div className="admin-intro-badge">
-          <CheckCircle2 size={17} />
-          <span>Acceso de administrador</span>
+        <div className="admin-intro-actions">
+          <Link href="/admin/planes" className="button secondary">
+            <Library size={16} /> Biblioteca de planes
+          </Link>
+          <div className="admin-intro-badge">
+            <CheckCircle2 size={17} />
+            <span>Acceso de administrador</span>
+          </div>
         </div>
       </section>
 
@@ -304,9 +370,9 @@ function AdminWorkspace() {
         <div>
           <strong>Las instrucciones originales permanecen.</strong>
           <span>
-            Este panel solo edita nombre, video y tips de ejercicios ya
-            existentes en el PDF. No crea rutinas ni cambia niveles, series u
-            orden.
+            Este panel conserva el editor completo de Adelgazar. La biblioteca
+            sirve para preparar planes futuros con formularios, sin editar
+            archivos de código.
           </span>
         </div>
         <a
@@ -330,7 +396,7 @@ function AdminWorkspace() {
           className={activeTab === "users" ? "active" : ""}
           onClick={() => setActiveTab("users")}
         >
-          <Users size={17} /> Usuarios
+          <Users size={17} /> Usuarios y progreso
         </button>
         <button
           role="tab"
@@ -338,7 +404,7 @@ function AdminWorkspace() {
           className={activeTab === "content" ? "active" : ""}
           onClick={() => setActiveTab("content")}
         >
-          <FilePenLine size={17} /> Contenido
+          <FilePenLine size={17} /> Contenido Adelgazar
         </button>
       </div>
 
@@ -369,11 +435,7 @@ function AdminWorkspace() {
                     ? String(completedSessions)
                     : "—"
               }
-              note={
-                selectedDetail
-                  ? "usuario seleccionado"
-                  : "selecciona un usuario"
-              }
+              note={selectedPlan ? selectedPlan.title : "elige un plan"}
               tone="lavender"
             />
             <Metric
@@ -386,18 +448,24 @@ function AdminWorkspace() {
                     ? String(recordedSets)
                     : "—"
               }
-              note={
-                selectedDetail
-                  ? "usuario seleccionado"
-                  : "selecciona un usuario"
-              }
+              note={selectedUser ? selectedUser.fullName : "elige un usuario"}
               tone="mint"
             />
           </section>
 
+          {plansError && (
+            <div className="form-error admin-inline-message" role="alert">
+              <AlertCircle size={16} />
+              <span>{plansError}</span>
+              <button className="text-link" onClick={() => void loadPlans()}>
+                <RefreshCw size={14} /> Reintentar
+              </button>
+            </div>
+          )}
+
           <div className="admin-users-layout">
             <section className="admin-card admin-users-card">
-              <div className="admin-card-heading">
+              <div className="admin-card-heading admin-directory-heading">
                 <div>
                   <span className="eyebrow">DIRECTORIO</span>
                   <h2>Personas registradas</h2>
@@ -407,15 +475,32 @@ function AdminWorkspace() {
                   {filteredUsers.length === 1 ? "resultado" : "resultados"}
                 </span>
               </div>
-              <label className="admin-search">
-                <Search size={17} />
-                <span className="sr-only">Buscar usuario</span>
-                <input
-                  value={search}
-                  onChange={event => setSearch(event.target.value)}
-                  placeholder="Buscar por nombre, usuario o email"
-                />
-              </label>
+              <div className="admin-filter-row">
+                <label className="admin-search">
+                  <Search size={17} />
+                  <span className="sr-only">Buscar usuario</span>
+                  <input
+                    value={search}
+                    onChange={event => setSearch(event.target.value)}
+                    placeholder="Buscar por nombre, usuario o email"
+                  />
+                </label>
+                <label className="admin-plan-filter">
+                  <span>Plan para gráficos</span>
+                  <select
+                    value={selectedPlanId}
+                    disabled={plansLoading || catalogPlans.length === 0}
+                    onChange={event => setSelectedPlanId(event.target.value)}
+                  >
+                    {catalogPlans.map(item => (
+                      <option key={item.id} value={item.id}>
+                        {item.title}
+                        {item.published ? "" : " · Borrador"}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
               {usersLoading ? (
                 <LoadingRows />
               ) : usersError ? (
@@ -443,8 +528,8 @@ function AdminWorkspace() {
                     <thead>
                       <tr>
                         <th>Usuario</th>
-                        <th>Nivel</th>
-                        <th>Inicio</th>
+                        <th>Nivel cuenta</th>
+                        <th>Inicio cuenta</th>
                         <th>Último acceso</th>
                         <th>
                           <span className="sr-only">Seleccionar</span>
@@ -500,6 +585,7 @@ function AdminWorkspace() {
             <UserDetailPanel
               detail={selectedDetail}
               selectedUser={selectedUser}
+              selectedPlanId={selectedPlanId}
               loading={detailLoading}
               error={detailError}
               onRetry={() => setDetailReload(current => current + 1)}
@@ -618,8 +704,8 @@ function AdminWorkspace() {
           <section className="admin-card admin-content-editor">
             <div className="admin-card-heading">
               <div>
-                <span className="eyebrow">EDICIÓN LIMITADA</span>
-                <h2>Datos publicados</h2>
+                <span className="eyebrow">EDICIÓN LEGACY</span>
+                <h2>Datos publicados de Adelgazar</h2>
               </div>
               <FilePenLine size={20} className="admin-heading-icon" />
             </div>
@@ -741,37 +827,59 @@ function AdminWorkspace() {
 function UserDetailPanel({
   detail,
   selectedUser,
+  selectedPlanId,
   loading,
   error,
   onRetry,
 }: {
   detail: UserDetail | null;
   selectedUser: FitUser | null;
+  selectedPlanId: string;
   loading: boolean;
   error: string | null;
   onRetry: () => void;
 }) {
+  const plan = detail?.plan ?? null;
+  const enrollment = detail?.enrollment ?? null;
   const progress = detail?.progress ?? [];
-  const weeklyData = [1, 2, 3, 4].map(week => {
-    const completed = progress.filter(
-      item => item.dayKey.startsWith(`w${week}-`) && Boolean(item.completedAt)
-    ).length;
-    return {
-      week: `Semana ${week}`,
-      completed,
-      percent: Math.round((completed / 6) * 100),
-    };
-  });
-  const dailyData = [1, 2, 3, 4].flatMap(week =>
-    [1, 2, 3, 4, 5, 6].map(day => {
-      const record = progress.find(item => item.dayKey === `w${week}-d${day}`);
-      return {
-        day: `S${week} D${day}`,
-        series: record?.completedSets.length ?? 0,
-      };
-    })
-  );
-  const history = selectedUser ? buildHistory(selectedUser, progress) : [];
+  const hasPlanData = Boolean(plan && enrollment);
+  const weeklyData =
+    hasPlanData && plan
+      ? Array.from({ length: plan.weeks }, (_, index) => {
+          const week = index + 1;
+          const days = planDays(plan, week);
+          const completed = progress.filter(
+            item =>
+              days.some(day => item.dayKey === `w${week}-d${day.day}`) &&
+              Boolean(item.completedAt)
+          ).length;
+          return {
+            week: `S${week}`,
+            completed,
+            percent: Math.round((completed / Math.max(1, days.length)) * 100),
+            sessions: days.length,
+          };
+        })
+      : [];
+  const dailyData =
+    hasPlanData && plan
+      ? Array.from({ length: plan.weeks }, (_, index) => index + 1).flatMap(
+          week =>
+            planDays(plan, week).map(day => {
+              const record = progress.find(
+                item => item.dayKey === `w${week}-d${day.day}`
+              );
+              return {
+                day: `S${week} · ${day.label.slice(0, 3)}`,
+                series: record?.completedSets.length ?? 0,
+              };
+            })
+        )
+      : [];
+  const history =
+    hasPlanData && selectedUser && plan && enrollment
+      ? buildHistory(selectedUser, progress, plan, enrollment)
+      : [];
   const completedCount = progress.filter(item =>
     Boolean(item.completedAt)
   ).length;
@@ -780,19 +888,23 @@ function UserDetailPanel({
       !item.completedAt &&
       (item.completedSets.length > 0 || item.cardioDone || item.warmupDone)
   ).length;
+  const plannedSessions = plan
+    ? Array.from(
+        { length: plan.weeks },
+        (_, index) => planDays(plan, index + 1).length
+      ).reduce((sum, count) => sum + count, 0)
+    : 0;
 
   return (
     <section className="admin-card admin-detail-card">
       <div className="admin-card-heading">
         <div>
-          <span className="eyebrow">SEGUIMIENTO</span>
+          <span className="eyebrow">SEGUIMIENTO POR PLAN</span>
           <h2>
             {selectedUser ? selectedUser.fullName : "Detalle del usuario"}
           </h2>
         </div>
-        {selectedUser && (
-          <span className="level-badge">{levelLabel(selectedUser.level)}</span>
-        )}
+        {plan && <span className="level-badge">{plan.title}</span>}
       </div>
       {loading ? (
         <AdminLoading compact />
@@ -819,8 +931,26 @@ function UserDetailPanel({
             <span>
               <Mail size={14} /> {selectedUser.email}
             </span>
-            <span>Inicio: {formatDate(selectedUser.startDate)}</span>
+            <span>Plan filtrado: {plan?.title ?? selectedPlanId}</span>
+            {enrollment ? (
+              <span>Inscripción: {formatDate(enrollment.startDate)}</span>
+            ) : (
+              <span>Sin inscripción en este plan</span>
+            )}
           </div>
+          {enrollment && (
+            <div className="admin-plan-context">
+              <strong>
+                {plan?.mode === "straight"
+                  ? "Sin niveles · cantidades por ejercicio"
+                  : levelLabel(enrollment.level)}
+              </strong>
+              <span>
+                {plan?.weeks ?? 0} semanas · {plannedSessions} sesiones
+                programadas · descanso {enrollment.restSeconds}s
+              </span>
+            </div>
+          )}
           <div className="detail-summary">
             <div>
               <strong>{completedCount}</strong>
@@ -840,149 +970,179 @@ function UserDetailPanel({
               <span>series</span>
             </div>
           </div>
-          <div className="admin-chart-block">
-            <div className="chart-heading">
-              <div>
-                <h3>Cumplimiento por semana</h3>
-                <span>Sesiones completadas reales · 6 días por semana</span>
+          {!hasPlanData ? (
+            <div className="empty-state">
+              <BookOpen size={23} />
+              <strong>
+                Este usuario no tiene inscripción en{" "}
+                {plan?.title ?? "este plan"}.
+              </strong>
+              <span>El filtro no mezcla su historial de otros planes.</span>
+            </div>
+          ) : (
+            <>
+              <div className="admin-chart-block">
+                <div className="chart-heading">
+                  <div>
+                    <h3>Cumplimiento por semana</h3>
+                    <span>
+                      Sesiones completadas reales · {plan?.weeks} semanas · días
+                      definidos por el plan
+                    </span>
+                  </div>
+                  <BarChart3 size={18} />
+                </div>
+                <div className="admin-chart">
+                  <ResponsiveContainer width="100%" height={230}>
+                    <BarChart
+                      data={weeklyData}
+                      margin={{ top: 8, right: 8, bottom: 0, left: -20 }}
+                    >
+                      <CartesianGrid vertical={false} stroke="#f0dce5" />
+                      <XAxis
+                        dataKey="week"
+                        tick={{ fontSize: 11, fill: "#7b7180" }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        domain={[0, 100]}
+                        tickFormatter={value => `${value}%`}
+                        tick={{ fontSize: 11, fill: "#7b7180" }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <Tooltip
+                        formatter={(value: number) => [
+                          `${value}%`,
+                          "Cumplimiento",
+                        ]}
+                        cursor={{ fill: "#fff4f8" }}
+                      />
+                      <Bar
+                        dataKey="percent"
+                        fill={plan?.color ?? "#e9387a"}
+                        radius={[5, 5, 0, 0]}
+                        maxBarSize={42}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
-              <BarChart3 size={18} />
-            </div>
-            <div className="admin-chart">
-              <ResponsiveContainer width="100%" height={230}>
-                <BarChart
-                  data={weeklyData}
-                  margin={{ top: 8, right: 8, bottom: 0, left: -20 }}
-                >
-                  <CartesianGrid vertical={false} stroke="#f0dce5" />
-                  <XAxis
-                    dataKey="week"
-                    tick={{ fontSize: 11, fill: "#7b7180" }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    domain={[0, 100]}
-                    tickFormatter={value => `${value}%`}
-                    tick={{ fontSize: 11, fill: "#7b7180" }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip
-                    formatter={(value: number) => [`${value}%`, "Cumplimiento"]}
-                    cursor={{ fill: "#fff4f8" }}
-                  />
-                  <Bar
-                    dataKey="percent"
-                    fill="#e9387a"
-                    radius={[5, 5, 0, 0]}
-                    maxBarSize={42}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-          <div className="admin-chart-block">
-            <div className="chart-heading">
-              <div>
-                <h3>Series realizadas por día</h3>
-                <span>Conteo guardado en cada registro del programa</span>
-              </div>
-              <BarChart3 size={18} />
-            </div>
-            <div className="admin-chart">
-              <ResponsiveContainer width="100%" height={190}>
-                <LineChart
-                  data={dailyData}
-                  margin={{ top: 8, right: 8, bottom: 0, left: -20 }}
-                >
-                  <CartesianGrid vertical={false} stroke="#f0dce5" />
-                  <XAxis
-                    dataKey="day"
-                    interval={3}
-                    tick={{ fontSize: 10, fill: "#7b7180" }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    allowDecimals={false}
-                    tick={{ fontSize: 11, fill: "#7b7180" }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip
-                    cursor={{ stroke: "#e9387a", strokeDasharray: "3 3" }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="series"
-                    name="Series"
-                    stroke="#b35be0"
-                    strokeWidth={2.5}
-                    dot={{ r: 3, fill: "#b35be0", strokeWidth: 0 }}
-                    activeDot={{ r: 5 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-          <div className="admin-history">
-            <div className="chart-heading">
-              <div>
-                <h3>Historial diario</h3>
-                <span>
-                  Estado calculado con el progreso guardado, sin datos de
-                  demostración
-                </span>
-              </div>
-              <Clock3 size={18} />
-            </div>
-            <div className="admin-table-wrap">
-              <table className="admin-table history-table">
-                <thead>
-                  <tr>
-                    <th>Día</th>
-                    <th>Fecha</th>
-                    <th>Estado</th>
-                    <th>Series</th>
-                    <th>Cardio</th>
-                    <th>Actualizado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.map(item => (
-                    <tr key={item.key}>
-                      <td>
-                        <strong>
-                          S{item.week} · D{item.day}
-                        </strong>
-                        <small>{item.label}</small>
-                      </td>
-                      <td>{formatDate(item.date)}</td>
-                      <td>
-                        <StatusBadge status={item.status} />
-                      </td>
-                      <td>{item.sets}</td>
-                      <td>
-                        {item.cardio ? (
-                          <CheckCircle2 size={16} className="history-check" />
-                        ) : (
-                          <span className="muted">—</span>
+              <div className="admin-chart-block">
+                <div className="chart-heading">
+                  <div>
+                    <h3>Series realizadas por día</h3>
+                    <span>
+                      Solo registros guardados dentro de {plan?.title}
+                    </span>
+                  </div>
+                  <BarChart3 size={18} />
+                </div>
+                <div className="admin-chart">
+                  <ResponsiveContainer width="100%" height={190}>
+                    <LineChart
+                      data={dailyData}
+                      margin={{ top: 8, right: 8, bottom: 0, left: -20 }}
+                    >
+                      <CartesianGrid vertical={false} stroke="#f0dce5" />
+                      <XAxis
+                        dataKey="day"
+                        interval={Math.max(
+                          0,
+                          Math.floor(dailyData.length / 8) - 1
                         )}
-                      </td>
-                      <td>
-                        {item.updatedAt ? (
-                          formatDateTime(item.updatedAt)
-                        ) : (
-                          <span className="muted">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                        tick={{ fontSize: 10, fill: "#7b7180" }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        allowDecimals={false}
+                        tick={{ fontSize: 11, fill: "#7b7180" }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <Tooltip
+                        cursor={{
+                          stroke: plan?.color ?? "#e9387a",
+                          strokeDasharray: "3 3",
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="series"
+                        name="Series"
+                        stroke="#b35be0"
+                        strokeWidth={2.5}
+                        dot={{ r: 3, fill: "#b35be0", strokeWidth: 0 }}
+                        activeDot={{ r: 5 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="admin-history">
+                <div className="chart-heading">
+                  <div>
+                    <h3>Historial diario</h3>
+                    <span>
+                      Fecha calculada desde la inscripción y días reales del
+                      plan, sin datos de demostración
+                    </span>
+                  </div>
+                  <Clock3 size={18} />
+                </div>
+                <div className="admin-table-wrap">
+                  <table className="admin-table history-table">
+                    <thead>
+                      <tr>
+                        <th>Día</th>
+                        <th>Fecha</th>
+                        <th>Estado</th>
+                        <th>Series</th>
+                        <th>Cardio</th>
+                        <th>Actualizado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {history.map(item => (
+                        <tr key={item.key}>
+                          <td>
+                            <strong>
+                              S{item.week} · D{item.day}
+                            </strong>
+                            <small>{item.label}</small>
+                          </td>
+                          <td>{formatDate(item.date)}</td>
+                          <td>
+                            <StatusBadge status={item.status} />
+                          </td>
+                          <td>{item.sets}</td>
+                          <td>
+                            {item.cardio ? (
+                              <CheckCircle2
+                                size={16}
+                                className="history-check"
+                              />
+                            ) : (
+                              <span className="muted">—</span>
+                            )}
+                          </td>
+                          <td>
+                            {item.updatedAt ? (
+                              formatDateTime(item.updatedAt)
+                            ) : (
+                              <span className="muted">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
         </>
       )}
     </section>
@@ -1034,33 +1194,39 @@ function StatusBadge({ status }: { status: DailyHistory["status"] }) {
   );
 }
 
-function buildHistory(user: FitUser, progress: Progress[]): DailyHistory[] {
-  return [1, 2, 3, 4].flatMap(week =>
-    [1, 2, 3, 4, 5, 6].map(day => {
-      const key = `w${week}-d${day}`;
-      const record = progress.find(item => item.dayKey === key);
-      const hasActivity = Boolean(
-        record &&
-          (record.completedSets.length ||
-            record.cardioDone ||
-            record.warmupDone)
-      );
-      return {
-        key,
-        week,
-        day,
-        date: dayDate(user.startDate, week, day),
-        label: DAY_LABELS[day - 1],
-        status: record?.completedAt
-          ? "completada"
-          : hasActivity
-            ? "parcial"
-            : "sin-registro",
-        sets: record?.completedSets.length ?? 0,
-        cardio: Boolean(record?.cardioDone),
-        updatedAt: record?.updatedAt ?? null,
-      };
-    })
+function buildHistory(
+  user: FitUser,
+  progress: Progress[],
+  plan: TrainingPlan,
+  enrollment: PlanEnrollment
+): DailyHistory[] {
+  return Array.from({ length: plan.weeks }, (_, index) => index + 1).flatMap(
+    week =>
+      planDays(plan, week).map(day => {
+        const key = `w${week}-d${day.day}`;
+        const record = progress.find(item => item.dayKey === key);
+        const hasActivity = Boolean(
+          record &&
+            (record.completedSets.length ||
+              record.cardioDone ||
+              record.warmupDone)
+        );
+        return {
+          key,
+          week,
+          day: day.day,
+          date: dayDate(enrollment.startDate || user.startDate, week, day.day),
+          label: day.label,
+          status: record?.completedAt
+            ? "completada"
+            : hasActivity
+              ? "parcial"
+              : "sin-registro",
+          sets: record?.completedSets.length ?? 0,
+          cardio: Boolean(record?.cardioDone),
+          updatedAt: record?.updatedAt ?? null,
+        };
+      })
   );
 }
 
@@ -1165,7 +1331,9 @@ function levelLabel(level: FitUser["level"]) {
 }
 
 function formatDate(value: string) {
-  return new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString("es", {
+  const date = new Date(`${value.slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("es", {
     day: "numeric",
     month: "short",
     year: "numeric",

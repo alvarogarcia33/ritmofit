@@ -51,3 +51,36 @@
 El catálogo contiene 12 días distintos y 108 fichas con 108 miniaturas originales. La revisión de solo lectura comprobó que los 108 enlaces coinciden con las anotaciones del PDF. La app tiene 6 rutas de página declaradas en `/manus-routes.json`, verificadas por HTTP; `/api/health` devuelve 200. Las APIs de progreso y administración rechazan acceso anónimo con 401; la autorización y el ownership se comprueban en el servidor.
 
 `pnpm check`, `pnpm test` (20 pruebas en 5 archivos) y `pnpm build` finalizaron correctamente con 93 alternativas/referencias: 91 insertables y dos enlaces externos por Error 150. Las 19 nuevas URLs con evento `onReady` en Chromium se integraron; los dos casos bloqueados ofrecen enlace a YouTube fuera del reproductor. El test cubre las 93 entradas, las URLs que indicó la usuaria y la conservación de los Vimeo originales. La revisión independiente anterior no encontró defectos críticos; se corrigieron sus observaciones: estrella para cada serie y navegación reactiva por query/historial. Las sesiones guardan su nivel histórico y fecha de cumplimiento. La cuenta administrativa se creó por CLI, no mediante un registro público, y sus credenciales permanecen fuera del repositorio.
+
+## 8. Biblioteca de planes y selección visual
+
+- [x] Mostrar una pre pantalla con Adelgazar y Tonificar, imágenes de referencia y colores diferentes. Adelgazar mantiene rosa/fucsia y Tonificar usa violeta. Permitir regresar a esta pantalla para cambiar de plan.
+- [x] Persistir el plan activo por usuario registrado y permitir explorar ambos sin cuenta; registrar progreso sigue requiriendo usuario y contraseña.
+- [x] Cambiar de plan no elimina ni sobreescribe el historial ni avances del anterior. Mostrar el plan activo en las páginas y separar sesiones, fechas de inicio, recordatorios y gráficas por plan.
+
+## 9. Tonificar a partir de las láminas
+
+- [x] Incorporar las cinco láminas como un plan de lunes a viernes con 28 ejercicios: lunes glúteos y femorales (6), martes espalda y bíceps (5), miércoles cuádriceps y pantorrillas (6), jueves hombro/pecho/tríceps (5), viernes pierna completa (6).
+- [x] Mantener tres series y las repeticiones/indicaciones específicas de cada ejercicio. Respetar planchas de 45 segundos x 3, repeticiones por pierna, cargas progresivas/sostenibles, femorales con reducción a la mitad y la indicación adicional del sillón de cuádriceps; no confundirlas con super series por nivel del PDF.
+- [x] Mostrar las imágenes de referencia de las láminas y permitir ampliarlas al consultar la técnica. Conservar el material original sin sobrescribirlo.
+- [x] Mantener opciones de serie y ejercicio realizado, sesión parcial reanudable, estrella por cumplimiento, temporizador de descanso y tiempo de plancha, historial, pendientes y gráficas. No agregar cardio obligatorio ni niveles no especificados para Tonificar.
+- [x] Indicar expresamente que las cuatro semanas de seguimiento y el descanso inicial configurable de 90 segundos son opciones organizativas de la app porque las imágenes no prescriben duración del ciclo ni descanso. Sábado/domingo sin sesión.
+
+## 10. Datos, administración y planes futuros
+
+- [x] Aplicar solo migraciones aditivas. Los registros existentes de `fit_progress` corresponden a Adelgazar y deben quedar intactos; nuevos planes tienen aislamiento por usuario, plan y día en tablas separadas.
+- [x] El panel admin permite consultar gráficos e historial de cada usuario filtrados por plan, sin datos ficticios, y conserva el editor anterior de Adelgazar.
+- [x] Proporcionar formularios admin para crear/editar planes futuros: nombre, descripción, color, imagen de referencia, días y ejercicios con cantidades. Los nuevos planes se pueden guardar en borrador y solo publicados aparecen en la biblioteca; no se habilita edición directa de código.
+- [x] No permitir acceso administrativo a usuarios normales ni acceso al progreso de otros usuarios mediante cambios de IDs.
+
+Los criterios anteriores que limitaban la versión a una sola rutina describen la versión inicial; quedan ampliados expresamente por la solicitud del 8 de noviembre. La estructura y dosificación original de Adelgazar no se cambian.
+
+## Evidencia de la ampliación multi-plan
+
+La revisión independiente de solo lectura confirmó la transcripción de las 28 fichas, sus cantidades y días; también verificó aislamiento por usuario/plan, calendario sin sábado/domingo de Tonificar y reloj basado en tiempo real. Se corrigieron los rechazos de IDs existentes en el editor, los inputs de URLs relativas, el modo protegido de Adelgazar y los borradores incompletos. Una sesión cumplida requiere confirmación explícita para retirar su estrella al corregir series/cardio; cambiar de plan no modifica ninguna finalización. No se permite ocultar un plan con historial ni alterar su dosificación en uso. Los niveles se presentan solamente en planes de super series.
+
+El inicio de una nueva inscripción propone el próximo lunes (o el actual si es lunes), ajustable antes de registrar progreso, para evitar atrasos retroactivos. El catálogo persistente conserva ediciones administrativas; las APIs de catálogo público excluyen borradores. Las imágenes de futuros planes se indican mediante rutas/URLs duraderas en el editor. Tonificar usa las láminas como referencia, sin asignar videos de variantes no comprobadas.
+
+`pnpm check`, `pnpm test` (34 pruebas en 8 archivos) y `pnpm build` finalizaron correctamente. El catálogo real devuelve Adelgazar y Tonificar; 143 referencias locales comprobadas existen, con 33 assets nuevos optimizados de Tonificar. `/api/health`, las nueve rutas del manifiesto y las referencias WebP responden 200. Las APIs privadas rechazan acceso anónimo con 401 y las pruebas verifican rechazo de una cuenta normal en administración.
+
+Antes y después del arranque aditivo, los 2 registros existentes de `fit_progress` conservan exactamente la misma huella SHA-256; permanecen las 5 cuentas existentes. No se crearon usuarios de prueba ni se modificaron registros personales durante las verificaciones.

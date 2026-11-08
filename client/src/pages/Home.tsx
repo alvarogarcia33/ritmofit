@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import {
-  ArrowDown,
   ArrowRight,
   Award,
   BellRing,
@@ -12,6 +11,7 @@ import {
   Clock3,
   Dumbbell,
   Flame,
+  Image as ImageIcon,
   Play,
   Sparkles,
   Star,
@@ -35,62 +35,91 @@ import {
 } from "@/lib/fit";
 import {
   LEVELS,
-  ROUTINE,
   STRETCH,
   WARMUP_LOWER,
   WARMUP_UPPER,
   type Exercise,
   type Level,
 } from "@shared/routine";
+import {
+  exerciseSets,
+  planConfig,
+  planDays,
+  planTotalSessions,
+  plannedExercises,
+} from "@shared/programs";
 import { VIDEO_ALTERNATIVES } from "@shared/video-alternatives";
 
+type Demonstration = Pick<
+  Exercise,
+  "name" | "videoUrl" | "tips" | "videoAlternative" | "sourceImage"
+>;
 export default function Home() {
-  const { user, loading, progress, overrides, updateProfile, writeProgress } =
-    useFit();
+  const {
+    user: account,
+    planUser: user,
+    loading,
+    planLoading,
+    plan,
+    planId,
+    enrollment,
+    progress,
+    overrides,
+    updatePlanPreferences,
+    writeProgress,
+  } = useFit();
   const [, navigate] = useLocation();
   const search = useSearch();
-  const [week, setWeek] = useState(1);
-  const [day, setDay] = useState(1);
+  const [week, setWeek] = useState(1),
+    [day, setDay] = useState(1);
   const [guestLevel, setGuestLevel] = useState<Level>("beginner");
-  const [video, setVideo] = useState<Pick<
-    Exercise,
-    "name" | "videoUrl" | "tips" | "videoAlternative"
-  > | null>(null);
+  const [video, setVideo] = useState<Demonstration | null>(null);
   const [celebration, setCelebration] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [training, setTraining] = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
-  const closeVideo = useCallback(() => setVideo(null), []);
-  const closeCelebration = useCallback(() => setCelebration(null), []);
+  const [saving, setSaving] = useState(false),
+    [training, setTraining] = useState(false),
+    [showGuide, setShowGuide] = useState(false);
+  const [exerciseClock, setExerciseClock] = useState<{
+    seconds: number;
+    label: string;
+  } | null>(null);
+  const closeVideo = useCallback(() => setVideo(null), []),
+    closeCelebration = useCallback(() => setCelebration(null), []);
   useEffect(() => {
-    const current = currentProgramDay(user);
-    const params = new URLSearchParams(search);
-    const queryWeek = Number(params.get("semana"));
-    const queryDay = Number(params.get("dia"));
-    setWeek(queryWeek >= 1 && queryWeek <= 4 ? queryWeek : current.week);
-    setDay(queryDay >= 1 && queryDay <= 7 ? queryDay : current.day);
+    const current = currentProgramDay(user, plan),
+      params = new URLSearchParams(search);
+    const w = Number(params.get("semana")),
+      d = Number(params.get("dia"));
+    setWeek(w >= 1 && w <= plan.weeks ? w : current.week);
+    setDay(d >= 1 && d <= 7 ? d : current.day);
     setTraining(false);
-  }, [user?.id, search]);
-  const key = dayKey(week, day);
-  const savedRecord = progress.find(p => p.dayKey === key);
-  const selectedLevel = user?.level ?? guestLevel;
-  const level = savedRecord?.level ?? selectedLevel;
-  const config = LEVELS[level];
-  const days = ROUTINE[week <= 2 ? "first" : "second"];
-  const routine = days.find(d => d.day === day) ?? days[0];
-  const exercises = routine.exercises
-    .filter(e => e.block <= config.blocks)
-    .map(e => {
-      const override = overrides.find(o => o.exerciseId === e.id);
-      return {
-        ...e,
-        ...(override ?? {}),
-        videoAlternative:
-          override && override.name !== e.name
+    setExerciseClock(null);
+    setVideo(null);
+  }, [user?.id, user?.startDate, planId, plan.weeks, search]);
+  const key = dayKey(week, day),
+    savedRecord = progress.find(p => p.dayKey === key);
+  const selectedLevel = user?.level ?? guestLevel,
+    level = savedRecord?.level ?? selectedLevel;
+  const config = planConfig(plan, level),
+    days = planDays(plan, week),
+    routine = days.find(d => d.day === day),
+    isRest = !routine;
+  const restSeconds = enrollment?.restSeconds ?? config.restSeconds;
+  const exercises = plannedExercises(plan, week, day, level).map(e => {
+    const override =
+      planId === "adelgazar"
+        ? overrides.find(o => o.exerciseId === e.id)
+        : undefined;
+    return {
+      ...e,
+      ...(override ?? {}),
+      videoAlternative:
+        planId === "adelgazar"
+          ? override && override.name !== e.name
             ? undefined
-            : (VIDEO_ALTERNATIVES[e.name] ?? e.videoAlternative),
-      };
-    });
+            : (VIDEO_ALTERNATIVES[e.name] ?? e.videoAlternative)
+          : e.videoAlternative,
+    };
+  });
   const record: Progress = savedRecord ?? {
     dayKey: key,
     completedSets: [],
@@ -100,18 +129,22 @@ export default function Home() {
     updatedAt: "",
   };
   const requiredSets = exercises.flatMap(e =>
-    Array.from({ length: config.rounds }, (_, i) => `${e.id}:${i + 1}`)
+    Array.from(
+      { length: exerciseSets(plan, e, level) },
+      (_, i) => `${e.id}:${i + 1}`
+    )
   );
   const completedCount = requiredSets.filter(id =>
     record.completedSets.includes(id)
   ).length;
+  const cardioRequired = config.cardioMinutes > 0;
   const percent = Math.round(
-    ((completedCount + (record.cardioDone ? 1 : 0)) /
-      (requiredSets.length + 1)) *
+    ((completedCount + (cardioRequired && record.cardioDone ? 1 : 0)) /
+      (requiredSets.length + (cardioRequired ? 1 : 0) || 1)) *
       100
   );
-  const allComplete = !!record.completedAt;
-  const totalCompleted = progress.filter(p => p.completedAt).length;
+  const totalCompleted = progress.filter(p => p.completedAt).length,
+    totalSessions = planTotalSessions(plan);
   const totalSets = progress.reduce(
     (sum, p) => sum + p.completedSets.length,
     0
@@ -119,18 +152,22 @@ export default function Home() {
   const weekCompleted = progress.filter(
     p => p.dayKey.startsWith(`w${week}-`) && p.completedAt
   ).length;
+  const weeklyGoal = days.length;
   const pending =
-    user && user.remindersEnabled ? overdueDays(user, progress) : [];
+    user && user.remindersEnabled && enrollment
+      ? overdueDays(user, progress, plan)
+      : [];
+  const busy = saving || planLoading || loading;
   const changeLevel = async (next: Level) => {
-    if (!user) return setGuestLevel(next);
-    setBusy(true);
+    if (!account) return setGuestLevel(next);
+    setSaving(true);
     try {
-      await updateProfile({ level: next });
-      toast.success("Nivel actualizado.");
-    } catch (err) {
-      toast.error((err as Error).message);
+      await updatePlanPreferences({ level: next });
+      toast.success("Nivel de Adelgazar actualizado.");
+    } catch (e) {
+      toast.error((e as Error).message);
     } finally {
-      setBusy(false);
+      setSaving(false);
     }
   };
   const persist = async (
@@ -139,11 +176,23 @@ export default function Home() {
     >,
     message?: string
   ) => {
-    if (!user) {
+    if (!account) {
       navigate("/acceso?registro=1");
       return;
     }
-    setBusy(true);
+    const nextSets = changes.completedSets ?? record.completedSets;
+    const reopensCompletedSession =
+      record.completedAt &&
+      (!requiredSets.every(id => nextSets.includes(id)) ||
+        (cardioRequired && !(changes.cardioDone ?? record.cardioDone)));
+    if (
+      reopensCompletedSession &&
+      !window.confirm(
+        "Esta sesión ya está cumplida. ¿Quieres corregirla? Al desmarcar una serie o el cardio, su estrella se retirará hasta volver a completarla. Los demás registros no cambian."
+      )
+    )
+      return;
+    setSaving(true);
     try {
       const next = await writeProgress(key, {
         completedSets: record.completedSets,
@@ -154,70 +203,73 @@ export default function Home() {
       if (next.completedAt && !record.completedAt)
         setCelebration("¡Rutina cumplida! Esta estrella es tuya.");
       else if (message) setCelebration(message);
-    } catch (err) {
-      toast.error((err as Error).message);
+    } catch (e) {
+      toast.error((e as Error).message);
     } finally {
-      setBusy(false);
+      setSaving(false);
     }
   };
   const toggleSet = (exercise: Exercise, round: number) => {
-    const id = `${exercise.id}:${round}`;
-    const next = record.completedSets.includes(id)
-      ? record.completedSets.filter(s => s !== id)
-      : [...record.completedSets, id];
-    const groupComplete = exercises
-      .filter(e => e.block === exercise.block)
-      .every(e => next.includes(`${e.id}:${round}`));
-    const exerciseComplete = Array.from(
-      { length: config.rounds },
+    const id = `${exercise.id}:${round}`,
+      adding = !record.completedSets.includes(id);
+    const next = adding
+      ? [...record.completedSets, id]
+      : record.completedSets.filter(s => s !== id);
+    const done = Array.from(
+      { length: exerciseSets(plan, exercise, level) },
       (_, i) => `${exercise.id}:${i + 1}`
     ).every(s => next.includes(s));
     void persist(
       { completedSets: next },
-      groupComplete && !record.completedSets.includes(id)
-        ? `¡Ronda ${round} de la super serie cumplida!`
-        : exerciseComplete && !record.completedSets.includes(id)
+      adding
+        ? done
           ? "¡Ejercicio cumplido! Sigue a tu ritmo."
-          : !record.completedSets.includes(id)
-            ? `¡Serie ${round} cumplida! Tu esfuerzo suma.`
-            : undefined
+          : `¡Serie ${round} cumplida! Tu esfuerzo suma.`
+        : undefined
     );
   };
   const toggleExercise = (exercise: Exercise) => {
     const ids = Array.from(
-      { length: config.rounds },
-      (_, i) => `${exercise.id}:${i + 1}`
-    );
-    const done = ids.every(id => record.completedSets.includes(id));
-    const next = done
-      ? record.completedSets.filter(id => !ids.includes(id))
-      : Array.from(new Set([...record.completedSets, ...ids]));
+        { length: exerciseSets(plan, exercise, level) },
+        (_, i) => `${exercise.id}:${i + 1}`
+      ),
+      done = ids.every(id => record.completedSets.includes(id));
     void persist(
-      { completedSets: next },
+      {
+        completedSets: done
+          ? record.completedSets.filter(id => !ids.includes(id))
+          : Array.from(new Set([...record.completedSets, ...ids])),
+      },
       done ? undefined : "¡Ejercicio cumplido! Un paso más."
     );
   };
-  const showWarmup = () =>
-    setVideo({
-      name:
-        routine.focus.includes("Brazos") || day === 4
-          ? "Calentamiento de tren superior"
-          : "Calentamiento de tren inferior",
-      videoUrl: day === 2 || day === 4 ? WARMUP_UPPER : WARMUP_LOWER,
-      tips: "Prepara tu cuerpo antes de comenzar. Sigue la demostración de calentamiento que acompaña tu programa.",
-    });
   const start = () => {
-    if (!user) return navigate("/acceso?registro=1");
+    if (!account) return navigate("/acceso?registro=1");
     setTraining(true);
     document
       .getElementById("session-exercises")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+  const blocks = [...new Set(exercises.map(e => e.block))];
   return (
     <FitLayout>
+      <section className="active-plan-strip">
+        <Link href="/" className="text-link">
+          ← Cambiar plan
+        </Link>
+        <span>
+          <i />
+          {plan.title} <small>· progreso independiente</small>
+        </span>
+        <Link href="/programa" className="text-link">
+          Ver programa <ArrowRight size={13} />
+        </Link>
+      </section>
       <section className="page-intro">
         <div>
-          <span className="eyebrow">CADA SESIÓN CUENTA</span>
+          <span className="eyebrow">
+            CADA SESIÓN CUENTA · {plan.title.toUpperCase()}
+          </span>
           <h1>
             {user
               ? `Vamos con todo, ${user.fullName.split(" ")[0]}.`
@@ -226,31 +278,33 @@ export default function Home() {
               <Sparkles size={25} />
             </span>
           </h1>
-          <p>
-            {user
-              ? "Un día a la vez. Un paso más cerca de tu objetivo."
-              : "No necesitas hacerlo perfecto. Solo necesitas seguir a tu ritmo."}
-          </p>
+          <p>Un día a la vez. Un paso más cerca de tu objetivo.</p>
         </div>
-        <div className="level-picker">
-          <span>MI NIVEL</span>
-          <div>
-            <span className={`level-dot ${selectedLevel}`} />
-            <select
-              aria-label="Seleccionar nivel"
-              value={selectedLevel}
-              disabled={busy}
-              onChange={e => void changeLevel(e.target.value as Level)}
-            >
-              {Object.entries(LEVELS).map(([value, item]) => (
-                <option key={value} value={value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={14} />
+        {plan.mode === "supersets" ? (
+          <div className="level-picker">
+            <span>MI NIVEL EN ESTE PLAN</span>
+            <div>
+              <span className={`level-dot ${selectedLevel}`} />
+              <select
+                aria-label="Seleccionar nivel"
+                value={selectedLevel}
+                disabled={busy}
+                onChange={e => void changeLevel(e.target.value as Level)}
+              >
+                {Object.entries(LEVELS).map(([value, item]) => (
+                  <option key={value} value={value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={14} />
+            </div>
           </div>
-        </div>
+        ) : (
+          <span className="tiny-pill">
+            SERIES POR EJERCICIO · CANTIDADES DE TU PLAN
+          </span>
+        )}
       </section>
       <section className="metrics-row">
         <div className="metric">
@@ -258,22 +312,24 @@ export default function Home() {
             <Target size={20} />
           </span>
           <div>
-            <span>Programa completado</span>
+            <span>Este plan completado</span>
             <strong>
               {totalCompleted}
-              <small> / 24 sesiones</small>
+              <small> / {totalSessions} sesiones</small>
             </strong>
           </div>
           <div className="mini-track">
-            <i style={{ width: `${(totalCompleted / 24) * 100}%` }} />
+            <i
+              style={{ width: `${(totalCompleted / totalSessions) * 100}%` }}
+            />
           </div>
         </div>
         <div className="metric">
           <span className="metric-icon peach">
-            <Flame size={20} />
+            <Dumbbell size={20} />
           </span>
           <div>
-            <span>Tu trabajo acumulado</span>
+            <span>Tu trabajo en {plan.title}</span>
             <strong>
               {totalSets}
               <small> series realizadas</small>
@@ -293,16 +349,20 @@ export default function Home() {
           </div>
         </div>
       </section>
-      {!user && !loading && (
+      {!account && !loading && (
         <div className="guest-notice">
-          <LockLabel />
+          <Sparkles size={16} />
           <span>
-            Explora tu rutina. Crea una cuenta para guardar tus series y ver tu
-            progreso.
+            Explora este plan. Crea una cuenta para guardar series y progreso.
           </span>
           <Link href="/acceso?registro=1">
             Crear mi espacio <ArrowRight size={14} />
           </Link>
+        </div>
+      )}
+      {planLoading && (
+        <div className="loading-panel">
+          Cargando el progreso de {plan.title}…
         </div>
       )}
       <div className="dashboard-columns">
@@ -310,16 +370,20 @@ export default function Home() {
           <section className="workout-hero">
             <div className="hero-copy">
               <div className="hero-kicker">
-                <span className="hero-white-pill">PÉRDIDA DE PESO</span>
-                <span>SEMANA {week} DE 4</span>
+                <span className="hero-white-pill">
+                  {plan.title.toUpperCase()}
+                </span>
+                <span>
+                  SEMANA {week} DE {plan.weeks}
+                </span>
               </div>
               <span className="hero-day">
-                {day === 7
-                  ? "DOMINGO · RECUPERACIÓN"
-                  : `${routine.label.toUpperCase()} · TU ENTRENAMIENTO`}
+                {isRest
+                  ? "RECUPERACIÓN"
+                  : `${routine!.label.toUpperCase()} · TU ENTRENAMIENTO`}
               </span>
               <h2>
-                {day === 7 ? (
+                {isRest ? (
                   <>
                     Recuperar también
                     <br />
@@ -327,46 +391,43 @@ export default function Home() {
                   </>
                 ) : (
                   <>
-                    {routine.focus}.<br />
-                    <em>
-                      {day === 2 || day === 4
-                        ? "Tu fuerza, tu cambio."
-                        : "Construye tu mejor versión."}
-                    </em>
+                    {routine!.focus}.<br />
+                    <em>Tu fuerza, tu camino.</em>
                   </>
                 )}
               </h2>
               <p>
-                {day === 7
-                  ? "Hoy tu cuerpo se recupera. No hay una sesión de entrenamiento programada."
-                  : routine.subtitle}
+                {isRest
+                  ? "No hay sesión programada para este día en tu plan."
+                  : routine!.subtitle}
               </p>
-              {day !== 7 && (
+              {!isRest && (
                 <div className="hero-details">
                   <span>
-                    <Dumbbell size={15} /> {exercises.length} ejercicios
+                    <Dumbbell size={15} />
+                    {exercises.length} ejercicios
                   </span>
                   <span>
-                    <Clock3 size={15} /> {config.cardioMinutes} min de cardio
+                    <Clock3 size={15} />
+                    {cardioRequired
+                      ? `${config.cardioMinutes} min cardio`
+                      : "Series por ejercicio"}
                   </span>
                 </div>
               )}
               <button
                 className="button hero-button"
-                onClick={day === 7 ? () => navigate("/programa") : start}
+                disabled={busy}
+                onClick={isRest ? () => navigate("/programa") : start}
               >
-                {day === 7
+                {isRest
                   ? "Ver mi semana"
-                  : allComplete
+                  : record.completedAt
                     ? "Revisar mi entrenamiento"
                     : training || completedCount
                       ? "Continuar entrenamiento"
                       : "Comenzar entrenamiento"}
-                {day === 7 ? (
-                  <ArrowRight size={16} />
-                ) : (
-                  <Play size={14} fill="currentColor" />
-                )}
+                <ArrowRight size={16} />
               </button>
             </div>
             <div className="hero-art">
@@ -376,11 +437,11 @@ export default function Home() {
                 <Dumbbell size={42} strokeWidth={1.35} />
               </div>
               <div className="hero-program-mark">
-                4
+                {plan.weeks}
                 <span>
                   SEMANAS
                   <br />
-                  DE CAMBIO
+                  DE SEGUIMIENTO
                 </span>
               </div>
               <span className="hero-art-caption">FUERZA + CONSTANCIA</span>
@@ -392,10 +453,8 @@ export default function Home() {
                 <h2>Tu semana, a tu ritmo</h2>
                 <p>
                   {user
-                    ? dateLabel(dayDate(user.startDate, week, 1), true) +
-                      " — " +
-                      dateLabel(dayDate(user.startDate, week, 7), true)
-                    : "6 días de entrenamiento · 1 día de recuperación"}
+                    ? `${dateLabel(dayDate(user.startDate, week, 1), true)} — ${dateLabel(dayDate(user.startDate, week, 7), true)}`
+                    : `${weeklyGoal} días con sesión · ${7 - weeklyGoal} sin sesión`}
                 </p>
               </div>
               <select
@@ -404,10 +463,11 @@ export default function Home() {
                 onChange={e => {
                   setWeek(Number(e.target.value));
                   setTraining(false);
+                  setExerciseClock(null);
                 }}
                 className="week-select"
               >
-                {[1, 2, 3, 4].map(w => (
+                {Array.from({ length: plan.weeks }, (_, i) => i + 1).map(w => (
                   <option key={w} value={w}>
                     Semana {w}
                   </option>
@@ -417,16 +477,18 @@ export default function Home() {
             <div className="day-selector">
               {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map(
                 (label, index) => {
-                  const done = progress.some(
-                    p => p.dayKey === dayKey(week, index + 1) && p.completedAt
-                  );
+                  const target = days.find(d => d.day === index + 1),
+                    done = progress.some(
+                      p => p.dayKey === dayKey(week, index + 1) && p.completedAt
+                    );
                   return (
                     <button
                       key={label}
-                      className={`day-chip ${day === index + 1 ? "active" : ""} ${done ? "done" : ""} ${index === 6 ? "rest-day" : ""}`}
+                      className={`day-chip ${day === index + 1 ? "active" : ""} ${done ? "done" : ""} ${!target ? "rest-day" : ""}`}
                       onClick={() => {
                         setDay(index + 1);
                         setTraining(false);
+                        setExerciseClock(null);
                       }}
                     >
                       <span>{label}</span>
@@ -440,17 +502,8 @@ export default function Home() {
                       <small>
                         {done ? (
                           <Check size={11} />
-                        ) : index === 6 ? (
-                          "Descanso"
                         ) : (
-                          [
-                            "Piernas",
-                            "Brazos",
-                            "Glúteos",
-                            "Espalda",
-                            "Piernas",
-                            "Abdomen",
-                          ][index]
+                          (target?.focus.split(" y ")[0] ?? "Descanso")
                         )}
                       </small>
                     </button>
@@ -459,46 +512,58 @@ export default function Home() {
               )}
             </div>
           </section>
-          {day !== 7 ? (
+          {!isRest ? (
             <section className="session-section" id="session-exercises">
               <div className="section-heading">
                 <div>
-                  <h2>Tu sesión de {routine.label.toLowerCase()}</h2>
+                  <h2>Tu sesión de {routine!.label.toLowerCase()}</h2>
                   <p>
-                    {config.reps} repeticiones por ejercicio · {config.rounds}{" "}
-                    rondas por super serie
+                    {plan.mode === "supersets"
+                      ? `${config.reps} repeticiones · ${config.rounds} rondas por super serie`
+                      : "Completa las series indicadas · las cantidades están en cada ficha"}
                   </p>
+                  {savedRecord?.level &&
+                    savedRecord.level !== selectedLevel && (
+                      <small>Este registro conserva su nivel histórico.</small>
+                    )}
                 </div>
                 <button
                   className="text-link guide-toggle"
                   onClick={() => setShowGuide(!showGuide)}
                 >
-                  <CircleHelp size={15} /> Cómo entrenar
+                  <CircleHelp size={15} />
+                  Cómo entrenar
                 </button>
               </div>
               {showGuide && (
                 <div className="guide-box">
-                  <h3>Así funciona tu nivel {config.label.toLowerCase()}</h3>
-                  <p>
-                    Haz los ejercicios de cada super serie uno tras otro, sin
-                    descanso entre ellos. Descansa{" "}
-                    {config.restSeconds === 90
-                      ? "1:30 minutos"
-                      : config.restSeconds / 60 + " minutos"}{" "}
-                    al terminar cada bloque. Completa los {config.blocks}{" "}
-                    {config.blocks === 1 ? "bloque" : "bloques"} y repite el
-                    recorrido {config.rounds} veces. Termina con{" "}
-                    {config.cardioMinutes} minutos de cardio.
-                  </p>
-                  <p className="source-note">
-                    Usamos las cantidades de la tabla general del PDF. Excepción
-                    del ejemplo: desplante fijo con salto para principiante, 30
-                    segundos por pierna. La mención “12–25” de Smith en el
-                    ejemplo intermedio contradice la tabla; se mantiene 12–15.
-                    El sprint no incluye duración en el PDF: confirma la
-                    dosificación con tu profesional, no se asigna una duración
-                    nueva.
-                  </p>
+                  <h3>
+                    {plan.mode === "supersets"
+                      ? `Así funciona tu nivel ${config.label.toLowerCase()}`
+                      : "Las cantidades vienen de tus láminas"}
+                  </h3>
+                  {plan.mode === "supersets" ? (
+                    <>
+                      <p>
+                        Haz los ejercicios de cada super serie uno tras otro.
+                        Descansa al terminar el bloque y repite el recorrido{" "}
+                        {config.rounds} veces. Termina con{" "}
+                        {config.cardioMinutes} minutos de cardio.
+                      </p>
+                      <p className="source-note">
+                        Las cantidades provienen de la tabla general del PDF. El
+                        desplante fijo con salto de principiante indica 30
+                        segundos por pierna. El sprint no especifica duración:
+                        confirma la dosificación con tu profesional.
+                      </p>
+                    </>
+                  ) : (
+                    plan.notes.map((note, i) => (
+                      <p className="source-note" key={i}>
+                        {note}
+                      </p>
+                    ))
+                  )}
                 </div>
               )}
               <div className="warmup-bar">
@@ -507,19 +572,33 @@ export default function Home() {
                 </div>
                 <div>
                   <strong>Primero, prepara tu cuerpo</strong>
-                  <span>El calentamiento es parte del proceso.</span>
+                  <span>
+                    {plan.mode === "supersets"
+                      ? "El calentamiento es parte del proceso."
+                      : "Sigue el calentamiento indicado por tu profesional."}
+                  </span>
                 </div>
-                <button className="text-link" onClick={showWarmup}>
-                  <Play size={12} fill="currentColor" /> Ver calentamiento
-                </button>
+                {plan.mode === "supersets" && (
+                  <button
+                    className="text-link"
+                    onClick={() =>
+                      setVideo({
+                        name: "Calentamiento del programa",
+                        videoUrl:
+                          day === 2 || day === 4 ? WARMUP_UPPER : WARMUP_LOWER,
+                        tips: "Prepara tu cuerpo antes de comenzar.",
+                      })
+                    }
+                  >
+                    <Play size={12} />
+                    Ver
+                  </button>
+                )}
                 <button
                   className={`small-check ${record.warmupDone ? "checked" : ""}`}
                   disabled={busy}
-                  aria-label={
-                    record.warmupDone
-                      ? "Desmarcar calentamiento realizado"
-                      : "Marcar calentamiento realizado"
-                  }
+                  aria-label="Marcar o desmarcar calentamiento"
+                  aria-pressed={record.warmupDone}
                   onClick={() =>
                     void persist({ warmupDone: !record.warmupDone })
                   }
@@ -527,65 +606,89 @@ export default function Home() {
                   <Check size={14} />
                 </button>
               </div>
-              {Array.from(
-                { length: config.blocks },
-                (_, index) => index + 1
-              ).map(block => (
+              {routine!.sourceImage && (
+                <a
+                  href={routine!.sourceImage}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="source-sheet-link"
+                >
+                  <ImageIcon size={18} />
+                  Ver la lámina original de {routine!.label.toLowerCase()}{" "}
+                  <ArrowRight size={14} />
+                </a>
+              )}
+              {blocks.map(block => (
                 <section
                   className={`superset block-${block}`}
-                  key={`${key}-${block}`}
+                  key={`${planId}-${key}-${block}`}
                 >
                   <div className="superset-heading">
                     <div>
                       <span className="block-number">0{block}</span>
                       <div>
-                        <h3>Super serie {block}</h3>
+                        <h3>
+                          {plan.mode === "supersets"
+                            ? `Super serie ${block}`
+                            : "Tus ejercicios, en orden"}
+                        </h3>
                         <span>
                           {exercises.filter(e => e.block === block).length}{" "}
-                          ejercicios · {config.rounds} rondas
+                          ejercicios ·{" "}
+                          {plan.mode === "supersets"
+                            ? `${config.rounds} rondas`
+                            : "series indicadas en cada ejercicio"}
                         </span>
                       </div>
                     </div>
                     <span className="superset-tag">
-                      {block === 1
-                        ? "BASE"
-                        : block === 2
-                          ? "INTERMEDIO"
-                          : "AVANZADO"}
+                      {plan.mode === "supersets"
+                        ? block === 1
+                          ? "BASE"
+                          : block === 2
+                            ? "INTERMEDIO"
+                            : "AVANZADO"
+                        : "LÁMINA ORIGINAL"}
                     </span>
                   </div>
                   <div className="exercise-list">
                     {exercises
                       .filter(e => e.block === block)
-                      .map((exercise, index) => {
+                      .map((e, index) => {
                         const ids = Array.from(
-                          { length: config.rounds },
-                          (_, i) => `${exercise.id}:${i + 1}`
-                        );
-                        const done = ids.every(id =>
-                          record.completedSets.includes(id)
-                        );
+                            { length: exerciseSets(plan, e, level) },
+                            (_, i) => `${e.id}:${i + 1}`
+                          ),
+                          done = ids.every(id =>
+                            record.completedSets.includes(id)
+                          );
                         const reps =
-                          level === "beginner" && exercise.id === "p22-e2"
-                            ? "30 s por pierna"
-                            : config.reps + " repeticiones";
+                          plan.mode === "straight"
+                            ? (e.reps ?? "Según ejercicio")
+                            : level === "beginner" && e.id === "p22-e2"
+                              ? "30 s por pierna"
+                              : `${config.reps} repeticiones`;
                         return (
                           <article
-                            className={`exercise-row ${done ? "completed" : ""}`}
-                            key={exercise.id}
+                            className={`exercise-row ${done ? "completed" : ""} ${plan.mode === "straight" ? "illustrated-exercise" : ""}`}
+                            key={e.id}
                           >
                             <button
                               className="exercise-thumbnail"
-                              aria-label={`Ver cómo hacer ${exercise.name}`}
-                              onClick={() => setVideo(exercise)}
+                              aria-label={`Ver cómo hacer ${e.name}`}
+                              onClick={() => setVideo(e)}
                             >
                               <img
-                                src={exercise.thumbnail}
-                                alt={exercise.name}
+                                src={e.thumbnail}
+                                alt={e.name}
                                 loading="lazy"
                               />
                               <span>
-                                <Play size={14} fill="currentColor" />
+                                {plan.mode === "straight" ? (
+                                  <ImageIcon size={16} />
+                                ) : (
+                                  <Play size={14} fill="currentColor" />
+                                )}
                               </span>
                             </button>
                             <div className="exercise-copy">
@@ -594,17 +697,45 @@ export default function Home() {
                               </span>
                               <button
                                 className="exercise-name"
-                                onClick={() => setVideo(exercise)}
+                                onClick={() => setVideo(e)}
                               >
-                                {exercise.name}
+                                {e.name}
                               </button>
                               <span className="exercise-reps">{reps}</span>
+                              {plan.mode === "straight" && (
+                                <small className="exercise-source-tip">
+                                  {e.tips}
+                                </small>
+                              )}
                               <button
                                 className="exercise-video-link"
-                                onClick={() => setVideo(exercise)}
+                                onClick={() => setVideo(e)}
                               >
-                                Ver técnica <ArrowRight size={11} />
+                                {plan.mode === "straight"
+                                  ? "Ver referencia"
+                                  : "Ver técnica"}
+                                <ArrowRight size={11} />
                               </button>
+                              {e.seconds && (
+                                <button
+                                  className="text-link exercise-time-button"
+                                  onClick={() => {
+                                    setExerciseClock({
+                                      seconds: e.seconds!,
+                                      label: e.name,
+                                    });
+                                    document
+                                      .getElementById("session-clock")
+                                      ?.scrollIntoView({
+                                        behavior: "smooth",
+                                        block: "center",
+                                      });
+                                  }}
+                                >
+                                  <Clock3 size={13} />
+                                  Cronometrar {e.seconds} s
+                                </button>
+                              )}
                             </div>
                             <div className="exercise-controls">
                               <span className="sets-label">TUS SERIES</span>
@@ -614,11 +745,11 @@ export default function Home() {
                                     key={id}
                                     className={`set-button ${record.completedSets.includes(id) ? "checked" : ""}`}
                                     disabled={busy}
-                                    aria-label={`${record.completedSets.includes(id) ? "Desmarcar" : "Completar"} serie ${i + 1} de ${exercise.name}`}
+                                    aria-label={`${record.completedSets.includes(id) ? "Desmarcar" : "Completar"} serie ${i + 1} de ${e.name}`}
                                     aria-pressed={record.completedSets.includes(
                                       id
                                     )}
-                                    onClick={() => toggleSet(exercise, i + 1)}
+                                    onClick={() => toggleSet(e, i + 1)}
                                   >
                                     {record.completedSets.includes(id) ? (
                                       <Check size={14} strokeWidth={2.7} />
@@ -631,7 +762,7 @@ export default function Home() {
                               <button
                                 className={`exercise-done-button ${done ? "checked" : ""}`}
                                 disabled={busy}
-                                onClick={() => toggleExercise(exercise)}
+                                onClick={() => toggleExercise(e)}
                               >
                                 {done ? (
                                   <CheckCircle2 size={13} />
@@ -650,75 +781,74 @@ export default function Home() {
                   <div className="superset-footer">
                     <Clock3 size={13} />
                     <span>
-                      Al terminar el bloque, descansa{" "}
-                      <strong>
-                        {Math.floor(config.restSeconds / 60)}:
-                        {String(config.restSeconds % 60).padStart(2, "0")}
-                      </strong>{" "}
-                      y toma agua.
+                      {plan.mode === "supersets"
+                        ? "Al terminar el bloque"
+                        : "Entre series/ejercicios"}
+                      : reloj de descanso {Math.floor(restSeconds / 60)}:
+                      {String(restSeconds % 60).padStart(2, "0")}.
+                      {plan.mode === "straight"
+                        ? " Ajustable; no indicado en las fotos."
+                        : " Toma agua."}
                     </span>
                   </div>
                 </section>
               ))}
-              <div
-                className={`cardio-completion ${record.cardioDone ? "done" : ""}`}
-              >
-                <div className="cardio-icon">
-                  <Flame size={21} />
-                </div>
-                <div>
-                  <h3>El último paso: tu cardio</h3>
-                  <p>
-                    {config.cardioMinutes} minutos según tu nivel · intensidad
-                    adecuada para ti
-                  </p>
-                </div>
-                <button
-                  className={`button ${record.cardioDone ? "secondary" : "primary"}`}
-                  disabled={busy}
-                  onClick={() =>
-                    void persist(
-                      { cardioDone: !record.cardioDone },
-                      record.cardioDone
-                        ? undefined
-                        : "¡Cardio cumplido! Tu constancia suma."
-                    )
-                  }
+              {cardioRequired && (
+                <div
+                  className={`cardio-completion ${record.cardioDone ? "done" : ""}`}
                 >
-                  {record.cardioDone ? (
-                    <Check size={16} />
-                  ) : (
+                  <div className="cardio-icon">
+                    <Flame size={21} />
+                  </div>
+                  <div>
+                    <h3>El último paso: tu cardio</h3>
+                    <p>
+                      {config.cardioMinutes} minutos según tu nivel · intensidad
+                      adecuada para ti
+                    </p>
+                  </div>
+                  <button
+                    className={`button ${record.cardioDone ? "secondary" : "primary"}`}
+                    disabled={busy}
+                    onClick={() =>
+                      void persist(
+                        { cardioDone: !record.cardioDone },
+                        record.cardioDone
+                          ? undefined
+                          : "¡Cardio cumplido! Tu constancia suma."
+                      )
+                    }
+                  >
                     <CheckCircle2 size={16} />
-                  )}
-                  {record.cardioDone ? "Cardio realizado" : "Marcar cardio"}
-                </button>
-              </div>
+                    {record.cardioDone ? "Cardio realizado" : "Marcar cardio"}
+                  </button>
+                </div>
+              )}
               <div className="session-bottom">
                 <span>
-                  {allComplete ? (
+                  {record.completedAt ? (
                     <>
-                      <Star size={15} fill="currentColor" /> Tu estrella está
-                      guardada. ¡Sesión cumplida!
+                      <Star size={15} fill="currentColor" />
+                      Tu estrella está guardada. ¡Sesión cumplida!
                     </>
                   ) : (
-                    <>
-                      {completedCount} de {requiredSets.length} series
-                      realizadas. Tu avance se guarda al marcar.
-                    </>
+                    `${completedCount} de ${requiredSets.length} series realizadas. Se guarda al marcar.`
                   )}
                 </span>
-                <button
-                  className="text-link"
-                  onClick={() =>
-                    setVideo({
-                      name: "Estiramiento del programa",
-                      videoUrl: STRETCH,
-                      tips: "Cierra tu entrenamiento con movimientos suaves y controlados. No fuerces el rango de movimiento.",
-                    })
-                  }
-                >
-                  Ver estiramiento <ArrowRight size={14} />
-                </button>
+                {plan.mode === "supersets" && (
+                  <button
+                    className="text-link"
+                    onClick={() =>
+                      setVideo({
+                        name: "Estiramiento del programa",
+                        videoUrl: STRETCH,
+                        tips: "Movimientos suaves y controlados; no fuerces el rango.",
+                      })
+                    }
+                  >
+                    Ver estiramiento <ArrowRight size={14} />
+                  </button>
+                )}
               </div>
             </section>
           ) : (
@@ -728,11 +858,11 @@ export default function Home() {
               </span>
               <h2>Hoy, dale espacio a tu recuperación.</h2>
               <p>
-                Tu programa reserva el domingo para descansar. No hay ejercicios
-                adicionales ni series por completar.
+                No hay ejercicios asignados para este día en {plan.title}. No se
+                añaden sesiones para completar los huecos del material original.
               </p>
               <Link href="/programa" className="button secondary">
-                Preparar mi próxima semana <ArrowRight size={16} />
+                Ver mi semana <ArrowRight size={16} />
               </Link>
             </section>
           )}
@@ -750,19 +880,19 @@ export default function Home() {
             <div
               className="progress-ring"
               style={{
-                background: `conic-gradient(#e9387a ${(weekCompleted / 6) * 360}deg, #f7dce7 0deg)`,
+                background: `conic-gradient(${plan.color} ${(weekCompleted / weeklyGoal) * 360}deg, color-mix(in srgb, ${plan.color} 16%, white) 0deg)`,
               }}
             >
               <div>
                 <strong>
                   {weekCompleted}
-                  <small>/6</small>
+                  <small>/{weeklyGoal}</small>
                 </strong>
                 <span>sesiones esta semana</span>
               </div>
             </div>
             <div className="weekly-stars">
-              {Array.from({ length: 6 }, (_, i) => (
+              {Array.from({ length: weeklyGoal }, (_, i) => (
                 <Star
                   key={i}
                   size={22}
@@ -772,15 +902,13 @@ export default function Home() {
               ))}
             </div>
             <p>
-              {weekCompleted === 6
-                ? "¡Semana cumplida! Celebra tu constancia."
-                : "Cada estrella es una sesión que hiciste por ti."}
+              Cada estrella es una sesión de {plan.title} que hiciste por ti.
             </p>
             <Link href="/progreso" className="text-link">
               Ver mi progreso <ArrowRight size={14} />
             </Link>
           </section>
-          {day !== 7 && (
+          {!isRest && (
             <section className="session-progress-card">
               <div>
                 <span>AVANCE DE TU SESIÓN</span>
@@ -790,20 +918,53 @@ export default function Home() {
                 <i style={{ width: `${percent}%` }} />
               </div>
               <p>
-                {allComplete
+                {record.completedAt
                   ? "¡Lo hiciste! Tu progreso está guardado."
-                  : `${completedCount}/${requiredSets.length} series · cardio ${record.cardioDone ? "realizado" : "pendiente"}`}
+                  : `${completedCount}/${requiredSets.length} series${cardioRequired ? ` · cardio ${record.cardioDone ? "realizado" : "pendiente"}` : ""}`}
               </p>
             </section>
           )}
-          <TimerCard
-            restSeconds={config.restSeconds}
-            cardioMinutes={config.cardioMinutes}
-            onCardioComplete={() => {
-              if (!record.cardioDone)
-                void persist({ cardioDone: true }, "¡Cardio cumplido!");
-            }}
-          />
+          <div id="session-clock">
+            <TimerCard
+              key={`${planId}-${key}`}
+              restSeconds={restSeconds}
+              cardioMinutes={config.cardioMinutes}
+              exerciseSeconds={exerciseClock?.seconds}
+              exerciseLabel={exerciseClock?.label}
+              onCardioComplete={() => {
+                if (!record.cardioDone)
+                  void persist({ cardioDone: true }, "¡Cardio cumplido!");
+              }}
+            />
+            {plan.mode === "straight" && (
+              <label className="rest-duration-picker">
+                Descanso de este plan
+                <select
+                  aria-label="Duración del descanso"
+                  value={restSeconds}
+                  disabled={busy || !account}
+                  onChange={async e => {
+                    try {
+                      await updatePlanPreferences({
+                        restSeconds: Number(e.target.value),
+                      });
+                    } catch (err) {
+                      toast.error((err as Error).message);
+                    }
+                  }}
+                >
+                  {Array.from(new Set([30, 45, 60, 90, 120, 180, restSeconds]))
+                    .sort((a, b) => a - b)
+                    .map(s => (
+                      <option key={s} value={s}>
+                        {s} segundos
+                      </option>
+                    ))}
+                </select>
+                <small>Opción de la app, no prescrita en las fotos.</small>
+              </label>
+            )}
+          </div>
           <section
             className={`reminder-card ${pending.length ? "overdue" : ""}`}
           >
@@ -813,12 +974,10 @@ export default function Home() {
             </h3>
             <p>
               {pending.length
-                ? `Tienes ${pending.length} ${pending.length === 1 ? "sesión pendiente" : "sesiones pendientes"}. Retoma con calma; no acumules entrenamientos para compensar.`
+                ? `Tienes ${pending.length} sesiones pendientes en ${plan.title}. Retoma con calma; no acumules entrenamientos para compensar.`
                 : user
-                  ? user.remindersEnabled
-                    ? `Tu recordatorio está fijado a las ${user.reminderTime}. Te avisaremos aquí si una sesión queda pendiente.`
-                    : "Activa los recordatorios en Mi cuenta para identificar tus rutinas pendientes."
-                  : "Elige tu horario al crear tu cuenta y mantén tus pendientes a la vista."}
+                  ? `Recordatorio de ${plan.title} a las ${user.reminderTime}. Se muestra aquí al abrir la app.`
+                  : "Inicia sesión para guardar tu horario y ver pendientes."}
             </p>
             <Link
               href={
@@ -854,7 +1013,4 @@ export default function Home() {
       <StarCelebration message={celebration} onClose={closeCelebration} />
     </FitLayout>
   );
-}
-function LockLabel() {
-  return <Sparkles size={16} />;
 }

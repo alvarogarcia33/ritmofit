@@ -17,7 +17,17 @@ import { api } from "@/lib/fit";
 import { LEVELS } from "@shared/routine";
 
 export default function Settings() {
-  const { user, loading, progress, updateProfile } = useFit();
+  const {
+    user,
+    planUser,
+    plan,
+    enrollment,
+    loading,
+    planLoading,
+    progress,
+    updateProfile,
+    updatePlanPreferences,
+  } = useFit();
   const [busy, setBusy] = useState(false);
   const [passwordBusy, setPasswordBusy] = useState(false);
   const [error, setError] = useState("");
@@ -28,11 +38,22 @@ export default function Settings() {
     setBusy(true);
     const data = new FormData(e.currentTarget);
     try {
+      const preferences: {
+        startDate?: string;
+        level?: "beginner" | "intermediate" | "advanced";
+      } = {};
+      if (data.get("startDate"))
+        preferences.startDate = String(data.get("startDate"));
+      if (data.get("level"))
+        preferences.level = data.get("level") as
+          | "beginner"
+          | "intermediate"
+          | "advanced";
+      if (Object.keys(preferences).length)
+        await updatePlanPreferences(preferences);
       await updateProfile({
         fullName: data.get("fullName"),
         email: data.get("email"),
-        level: data.get("level"),
-        startDate: data.get("startDate") ?? user?.startDate,
         reminderTime: data.get("reminderTime"),
         remindersEnabled: data.get("remindersEnabled") === "on",
         timezone: data.get("timezone"),
@@ -80,7 +101,7 @@ export default function Settings() {
           <p>Ajusta tu cuenta y haz lugar para tu entrenamiento.</p>
         </div>
       </section>
-      {loading ? (
+      {loading || planLoading ? (
         <div className="loading-panel">Cargando tu cuenta…</div>
       ) : !user ? (
         <EmptyState
@@ -98,11 +119,11 @@ export default function Settings() {
           <form
             className="settings-card"
             onSubmit={submitProfile}
-            key={user.id}
+            key={`${user.id}-${plan.id}`}
           >
             <div className="section-heading">
               <div>
-                <h2>Mi perfil y mi programa</h2>
+                <h2>Mi perfil y mi plan {plan.title}</h2>
                 <p>
                   Tu usuario es <strong>@{user.username}</strong>.
                 </p>
@@ -133,36 +154,52 @@ export default function Settings() {
                   autoComplete="email"
                 />
               </label>
+              {plan.mode === "supersets" && (
+                <label>
+                  Mi nivel
+                  <select
+                    name="level"
+                    defaultValue={planUser?.level ?? user.level}
+                  >
+                    {Object.entries(LEVELS).map(([key, value]) => (
+                      <option key={key} value={key}>
+                        {value.label}
+                      </option>
+                    ))}
+                  </select>
+                  <small>
+                    Termina las sesiones parciales antes de cambiar de nivel. Tu
+                    historial cumplido conserva el nivel anterior.
+                  </small>
+                </label>
+              )}
               <label>
-                Mi nivel
-                <select name="level" defaultValue={user.level}>
-                  {Object.entries(LEVELS).map(([key, value]) => (
-                    <option key={key} value={key}>
-                      {value.label}
-                    </option>
-                  ))}
-                </select>
-                <small>
-                  Termina las sesiones parciales antes de cambiar de nivel. Tu
-                  historial cumplido conserva el nivel anterior.
-                </small>
-              </label>
-              <label>
-                Inicio del programa
+                Inicio de {plan.title}
                 <input
                   name="startDate"
                   type="date"
-                  defaultValue={user.startDate}
+                  defaultValue={
+                    enrollment?.startDate ??
+                    planUser?.startDate ??
+                    user.startDate
+                  }
                   disabled={progress.length > 0}
                   required
                 />
                 <small>
                   {progress.length
                     ? "La fecha permanece fija para conservar tu historial."
-                    : "Elige un lunes para mantener el calendario del PDF."}
+                    : "Elige un lunes para mantener el calendario de este plan."}
                 </small>
               </label>
             </div>
+            <p className="plan-settings-note">
+              La fecha y el nivel pertenecen a {plan.title}. Cambiar de plan
+              conserva el historial de los demás.{" "}
+              <Link href="/" className="text-link">
+                Ver mis planes →
+              </Link>
+            </p>
             <div className="settings-divider" />
             <div className="section-heading">
               <div>

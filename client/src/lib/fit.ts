@@ -1,4 +1,5 @@
 import type { Level } from "@shared/routine";
+import { planDays, type TrainingPlan } from "@shared/programs";
 
 export type FitUser = {
   id: number;
@@ -109,7 +110,7 @@ export function dateLabel(date: string, short = false) {
       : { weekday: "long", day: "numeric", month: "long" }
   );
 }
-export function currentProgramDay(user: FitUser | null) {
+export function currentProgramDay(user: FitUser | null, plan?: TrainingPlan) {
   if (!user) return { week: 1, day: 1 };
   const difference = Math.round(
     (new Date(`${todayInZone(user.timezone)}T12:00:00`).getTime() -
@@ -117,10 +118,19 @@ export function currentProgramDay(user: FitUser | null) {
       86400000
   );
   if (difference < 0) return { week: 1, day: 1 };
-  if (difference > 27) return { week: 4, day: 6 };
+  const weeks = plan?.weeks ?? 4;
+  if (difference > weeks * 7 - 1)
+    return {
+      week: weeks,
+      day: plan ? (planDays(plan, weeks).at(-1)?.day ?? 1) : 6,
+    };
   return { week: Math.floor(difference / 7) + 1, day: (difference % 7) + 1 };
 }
-export function overdueDays(user: FitUser, progress: Progress[]) {
+export function overdueDays(
+  user: FitUser,
+  progress: Progress[],
+  plan?: TrainingPlan
+) {
   const today = todayInZone(user.timezone);
   const localTime = new Intl.DateTimeFormat("en-GB", {
     timeZone: user.timezone,
@@ -129,8 +139,10 @@ export function overdueDays(user: FitUser, progress: Progress[]) {
     hour12: false,
   }).format(new Date());
   const items: { week: number; day: number; date: string; key: string }[] = [];
-  for (let week = 1; week <= 4; week++) {
-    for (let day = 1; day <= 6; day++) {
+  for (let week = 1; week <= (plan?.weeks ?? 4); week++) {
+    for (const day of plan
+      ? planDays(plan, week).map(d => d.day)
+      : [1, 2, 3, 4, 5, 6]) {
       const date = dayDate(user.startDate, week, day);
       const key = dayKey(week, day);
       if (
