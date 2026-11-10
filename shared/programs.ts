@@ -162,35 +162,65 @@ const TONE_DAYS: RoutineDay[] = [
         1,
         "Jalón de polea",
         "10 repeticiones",
-        "Con un peso sostenible, según la lámina."
+        "Con un peso sostenible, según la lámina.",
+        {
+          video: toneVideo(
+            "-MS6Z88wv5I",
+            "https://www.youtube.com/shorts/-MS6Z88wv5I"
+          ),
+        }
       ),
       toneExercise(
         2,
         2,
         "Remo con mancuerna",
         "10 repeticiones",
-        "Con un peso sostenible, según la lámina. Controla el tronco durante el remo."
+        "Con un peso sostenible, según la lámina. Controla el tronco durante el remo.",
+        {
+          video: toneVideo(
+            "-RngKKzbEnI",
+            "https://www.youtube.com/shorts/-RngKKzbEnI"
+          ),
+        }
       ),
       toneExercise(
         2,
         3,
         "Pull over con cuerda",
         "10 repeticiones",
-        "Con un peso sostenible, según la lámina."
+        "Con un peso sostenible, según la lámina.",
+        {
+          video: toneVideo(
+            "kXLRGQLISG4",
+            "https://www.youtube.com/shorts/kXLRGQLISG4"
+          ),
+        }
       ),
       toneExercise(
         2,
         4,
         "Vuelos laterales",
         "10 repeticiones",
-        "Con un peso sostenible, según la lámina. Evita impulsarte para levantar la carga."
+        "Con un peso sostenible, según la lámina. Evita impulsarte para levantar la carga.",
+        {
+          video: toneVideo(
+            "w8Knw73_Tw8",
+            "https://www.youtube.com/shorts/w8Knw73_Tw8"
+          ),
+        }
       ),
       toneExercise(
         2,
         5,
         "Martillo (bíceps)",
         "10 repeticiones",
-        "Con un peso sostenible, según la lámina."
+        "Con un peso sostenible, según la lámina.",
+        {
+          video: toneVideo(
+            "Oat8Gwahvw4",
+            "https://www.youtube.com/shorts/Oat8Gwahvw4"
+          ),
+        }
       ),
     ],
   },

@@ -11,6 +11,7 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { Exercise } from "@shared/routine";
 import { getVideoEmbedUrl } from "@shared/video";
+import { YouTubeVideo } from "./YouTubeVideo";
 
 export function TimerCard({
   restSeconds,
@@ -222,6 +223,12 @@ export function VideoModal({
               src={exercise.sourceImage}
               alt={`Lámina original para consultar ${exercise.name}`}
             />
+          ) : embed?.startsWith("https://www.youtube-nocookie.com/") ? (
+            <YouTubeVideo
+              embedUrl={embed}
+              watchUrl={fallbackUrl}
+              title={`Cómo hacer ${exercise.name}`}
+            />
           ) : embed ? (
             <iframe
               src={embed}
@@ -287,7 +294,10 @@ export function VideoModal({
               >
                 {exercise.videoUrl.includes("vimeo.com")
                   ? "Abrir video original en Vimeo"
-                  : "Abrir demostración externa"}{" "}
+                  : exercise.videoUrl.includes("youtube.com") ||
+                      exercise.videoUrl.includes("youtu.be")
+                    ? "Abrir video en YouTube"
+                    : "Abrir demostración externa"}{" "}
                 <ExternalLink size={15} />
               </a>
             )}
@@ -295,11 +305,13 @@ export function VideoModal({
           <small>
             {exercise.sourceImage && !embed
               ? "Las ilustraciones se conservan del material que compartiste. "
-              : alternative && !alternative.embedUrl
-                ? "El video se abre en YouTube porque no admite inserción; el Vimeo original se conserva como referencia. "
-                : alternative
-                  ? "La alternativa usa el reproductor oficial del proveedor; el enlace Vimeo original se conserva como referencia. "
-                  : "Vimeo puede restringir la reproducción integrada según los permisos del propietario. "}
+              : embed?.startsWith("https://www.youtube-nocookie.com/")
+                ? "Se utiliza el reproductor oficial de YouTube; si no funciona aquí, abre el mismo video con el enlace externo. "
+                : alternative && !alternative.embedUrl
+                  ? "El video se abre en YouTube porque no admite inserción; el Vimeo original se conserva como referencia. "
+                  : alternative
+                    ? "La alternativa usa el reproductor oficial del proveedor; el enlace Vimeo original se conserva como referencia. "
+                    : "Vimeo puede restringir la reproducción integrada según los permisos del propietario. "}
             Ante dolor, mareo o molestias, detén la sesión.
           </small>
         </div>

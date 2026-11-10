@@ -658,7 +658,7 @@ export async function registerFitRoutes(app: Express): Promise<void> {
   await initializeFitPlanDatabase();
   await seedDefaultFitPlans(DEFAULT_PLANS);
   const tonificar = DEFAULT_PLANS.find(plan => plan.id === "tonificar");
-  if (tonificar)
+  if (tonificar) {
     await migrateFitPlanDayMediaOnce(
       "tonificar-monday-videos-2026-11-10",
       tonificar.id,
@@ -666,6 +666,14 @@ export async function registerFitRoutes(app: Express): Promise<void> {
       1,
       replacePlanExerciseMediaFromDefault
     );
+    await migrateFitPlanDayMediaOnce(
+      "tonificar-tuesday-videos-2026-11-10",
+      tonificar.id,
+      tonificar,
+      2,
+      replacePlanExerciseMediaFromDefault
+    );
+  }
   await purgeExpiredFitSessions();
 
   const router = express.Router();
