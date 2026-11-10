@@ -30,10 +30,17 @@ import {
   updateFitUser,
   upsertFitContent,
 } from "./fit-db";
-import { initializeFitPlanDatabase, seedDefaultFitPlans } from "./fit-plan-db";
+import {
+  initializeFitPlanDatabase,
+  migrateFitPlanDayMediaOnce,
+  seedDefaultFitPlans,
+} from "./fit-plan-db";
 import { registerFitPlanRoutes } from "./fit-plans";
 import express from "express";
-import { DEFAULT_PLANS } from "../shared/programs";
+import {
+  DEFAULT_PLANS,
+  replacePlanExerciseMediaFromDefault,
+} from "../shared/programs";
 
 const scryptAsync = promisify(scrypt) as (
   password: string | Buffer,
@@ -650,6 +657,15 @@ export async function registerFitRoutes(app: Express): Promise<void> {
   await initializeFitDatabase();
   await initializeFitPlanDatabase();
   await seedDefaultFitPlans(DEFAULT_PLANS);
+  const tonificar = DEFAULT_PLANS.find(plan => plan.id === "tonificar");
+  if (tonificar)
+    await migrateFitPlanDayMediaOnce(
+      "tonificar-monday-videos-2026-11-10",
+      tonificar.id,
+      tonificar,
+      1,
+      replacePlanExerciseMediaFromDefault
+    );
   await purgeExpiredFitSessions();
 
   const router = express.Router();

@@ -329,6 +329,80 @@ export async function updateFitPlan(
   return findFitPlan(id);
 }
 
+export async function migrateFitPlanDayMediaOnce(
+  migrationName: string,
+  planId: string,
+  defaultPlan: TrainingPlan,
+  dayNumber: number,
+  replacePlanExerciseMediaFromDefault: (
+    storedPlan: TrainingPlan,
+    defaultPlan: TrainingPlan,
+    dayNumber: number
+  ) => { plan: TrainingPlan; updatedExerciseIds: string[] }
+): Promise<string[]> {
+  if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(migrationName))
+    throw new Error("Invalid fit-plan migration name");
+  const connection = await planPool().getConnection();
+  let inTransaction = false;
+  try {
+    await connection.beginTransaction();
+    inTransaction = true;
+    await connection.execute(
+      `INSERT IGNORE INTO fit_plan_schema_meta (schema_name, version, updated_at)
+       VALUES (?, 0, CURRENT_TIMESTAMP(3))`,
+      [migrationName]
+    );
+    const [markerRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT version FROM fit_plan_schema_meta WHERE schema_name = ? FOR UPDATE`,
+      [migrationName]
+    );
+    if (Number(markerRows[0]?.version ?? 0) >= 1) {
+      await connection.commit();
+      inTransaction = false;
+      return [];
+    }
+    const [planRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT payload FROM fit_plans WHERE id = ? FOR UPDATE`,
+      [planId]
+    );
+    if (!planRows[0]) {
+      await connection.rollback();
+      inTransaction = false;
+      return [];
+    }
+    const payload = planRows[0].payload;
+    const storedPlan = (
+      typeof payload === "string" ? JSON.parse(payload) : payload
+    ) as TrainingPlan;
+    const result = replacePlanExerciseMediaFromDefault(
+      storedPlan,
+      defaultPlan,
+      dayNumber
+    );
+    if (result.updatedExerciseIds.length) {
+      await connection.execute(
+        `UPDATE fit_plans
+         SET payload = CAST(? AS JSON), updated_at = CURRENT_TIMESTAMP(3)
+         WHERE id = ?`,
+        [JSON.stringify(result.plan), planId]
+      );
+    }
+    await connection.execute(
+      `UPDATE fit_plan_schema_meta SET version = 1, updated_at = CURRENT_TIMESTAMP(3)
+       WHERE schema_name = ?`,
+      [migrationName]
+    );
+    await connection.commit();
+    inTransaction = false;
+    return result.updatedExerciseIds;
+  } catch (error) {
+    if (inTransaction) await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 export async function seedDefaultFitPlans(
   defaults: TrainingPlan[]
 ): Promise<void> {

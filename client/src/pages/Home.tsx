@@ -684,7 +684,7 @@ export default function Home() {
                                 loading="lazy"
                               />
                               <span>
-                                {plan.mode === "straight" ? (
+                                {plan.mode === "straight" && !e.videoUrl ? (
                                   <ImageIcon size={16} />
                                 ) : (
                                   <Play size={14} fill="currentColor" />
@@ -711,9 +711,11 @@ export default function Home() {
                                 className="exercise-video-link"
                                 onClick={() => setVideo(e)}
                               >
-                                {plan.mode === "straight"
-                                  ? "Ver referencia"
-                                  : "Ver técnica"}
+                                {e.videoUrl
+                                  ? "Ver demostración"
+                                  : plan.mode === "straight"
+                                    ? "Ver referencia"
+                                    : "Ver técnica"}
                                 <ArrowRight size={11} />
                               </button>
                               {e.seconds && (

@@ -33,24 +33,27 @@ export type PlanEnrollment = {
 };
 
 const toneSource = (day: number) => `/plans/tonificar/day-${day}.webp`;
+const toneVideo = (videoId: string, url: string) => ({ videoId, url });
 function toneExercise(
   day: number,
   index: number,
   name: string,
   reps: string,
   tips: string,
-  seconds?: number
+  options: { seconds?: number; video?: ReturnType<typeof toneVideo> } = {}
 ): Exercise {
   return {
     id: `tone-d${day}-e${index}`,
     name,
-    videoUrl: "",
-    thumbnail: `/plans/tonificar/d${day}-e${index}.webp`,
+    videoUrl: options.video?.url ?? "",
+    thumbnail: options.video
+      ? `https://i.ytimg.com/vi/${options.video.videoId}/hqdefault.jpg`
+      : `/plans/tonificar/d${day}-e${index}.webp`,
     sourceImage: toneSource(day),
     block: 1,
     sets: 3,
     reps,
-    ...(seconds ? { seconds } : {}),
+    ...(options.seconds ? { seconds: options.seconds } : {}),
     tips,
   };
 }
@@ -69,35 +72,65 @@ const TONE_DAYS: RoutineDay[] = [
         1,
         "Hip thrust",
         "10 repeticiones",
-        "La lámina indica subir el peso en cada serie. Ajusta la carga con un profesional; no comprometas la técnica."
+        "La lámina indica subir el peso en cada serie. Ajusta la carga con un profesional; no comprometas la técnica.",
+        {
+          video: toneVideo(
+            "zaSzxo6xleY",
+            "https://www.youtube.com/shorts/zaSzxo6xleY?feature=share"
+          ),
+        }
       ),
       toneExercise(
         1,
         2,
         "Búlgaras",
         "10 repeticiones por pierna",
-        "Con un peso sostenible, según la lámina. Completa ambas piernas antes de marcar la serie."
+        "Con un peso sostenible, según la lámina. Completa ambas piernas antes de marcar la serie.",
+        {
+          video: toneVideo(
+            "cytfxsIK_Hk",
+            "https://www.youtube.com/shorts/cytfxsIK_Hk"
+          ),
+        }
       ),
       toneExercise(
         1,
         3,
         "Peso muerto",
         "10 repeticiones",
-        "La fuente indica subir el peso en cada serie. Mantén una técnica controlada y una carga adecuada para ti."
+        "La fuente indica subir el peso en cada serie. Mantén una técnica controlada y una carga adecuada para ti.",
+        {
+          video: toneVideo(
+            "QjP9g7M_Idg",
+            "https://www.youtube.com/shorts/QjP9g7M_Idg"
+          ),
+        }
       ),
       toneExercise(
         1,
         4,
         "Patada en polea a 45°",
         "15 repeticiones por pierna",
-        "La fuente indica subir el peso en cada serie. Completa ambas piernas y evita compensar con la espalda."
+        "La fuente indica subir el peso en cada serie. Completa ambas piernas y evita compensar con la espalda.",
+        {
+          video: toneVideo(
+            "-YgMavu-_XQ",
+            "https://www.youtube.com/shorts/-YgMavu-_XQ"
+          ),
+        }
       ),
       toneExercise(
         1,
         5,
         "Femorales",
         "10 pesadas + 10 bajando el peso a la mitad",
-        "La lámina indica 10 repeticiones pesadas más 10 con la mitad de peso. Confirma la carga y esta técnica de reducción con tu profesional."
+        "La lámina indica 10 repeticiones pesadas más 10 con la mitad de peso. Confirma la carga y esta técnica de reducción con tu profesional.",
+        {
+          video: toneVideo(
+            "nmqG-tIr0hc",
+            "https://www.youtube.com/shorts/nmqG-tIr0hc"
+          ),
+        }
       ),
       toneExercise(
         1,
@@ -105,7 +138,13 @@ const TONE_DAYS: RoutineDay[] = [
         "Plancha frontal",
         "45 segundos",
         "Mantén la posición controlada por 45 segundos. Tres series; detente ante dolor o pérdida de postura.",
-        45
+        {
+          seconds: 45,
+          video: toneVideo(
+            "XCOq6lfsFAk",
+            "https://www.youtube.com/shorts/XCOq6lfsFAk"
+          ),
+        }
       ),
     ],
   },
@@ -198,7 +237,7 @@ const TONE_DAYS: RoutineDay[] = [
         "Plancha frontal",
         "45 segundos",
         "Tres series de 45 segundos, como indica la lámina. Mantén una posición que puedas controlar.",
-        45
+        { seconds: 45 }
       ),
       toneExercise(
         3,
@@ -348,6 +387,53 @@ export const DEFAULT_PLANS: TrainingPlan[] = [
     routine: { first: TONE_DAYS, second: TONE_DAYS },
   },
 ];
+
+export function replacePlanExerciseMediaFromDefault(
+  storedPlan: TrainingPlan,
+  defaultPlan: TrainingPlan,
+  dayNumber: number
+): { plan: TrainingPlan; updatedExerciseIds: string[] } {
+  const sourceDay = defaultPlan.routine.first.find(
+    day => day.day === dayNumber
+  );
+  if (!sourceDay) return { plan: storedPlan, updatedExerciseIds: [] };
+  const sourceById = new Map(
+    sourceDay.exercises.map(exercise => [exercise.id, exercise])
+  );
+  const updated = new Set<string>();
+  const replace = (days: RoutineDay[]) =>
+    days.map(day =>
+      day.day === dayNumber
+        ? {
+            ...day,
+            exercises: day.exercises.map(exercise => {
+              const source = sourceById.get(exercise.id);
+              if (!source) return exercise;
+              updated.add(exercise.id);
+              const next = {
+                ...exercise,
+                videoUrl: source.videoUrl,
+                thumbnail: source.thumbnail,
+              };
+              if (source.videoAlternative)
+                next.videoAlternative = source.videoAlternative;
+              else delete next.videoAlternative;
+              return next;
+            }),
+          }
+        : day
+    );
+  return {
+    plan: {
+      ...storedPlan,
+      routine: {
+        first: replace(storedPlan.routine.first),
+        second: replace(storedPlan.routine.second),
+      },
+    },
+    updatedExerciseIds: [...updated],
+  };
+}
 
 export function planDays(plan: TrainingPlan, week: number): RoutineDay[] {
   return plan.routine[week <= 2 ? "first" : "second"];

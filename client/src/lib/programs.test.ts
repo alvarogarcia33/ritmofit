@@ -6,9 +6,11 @@ import {
   planDay,
   planDays,
   planTotalSessions,
+  replacePlanExerciseMediaFromDefault,
   requiredPlanSets,
 } from "../../../shared/programs";
 import { ROUTINE } from "../../../shared/routine";
+import { getVideoEmbedUrl } from "../../../shared/video";
 import { currentProgramDay, overdueDays, type FitUser } from "./fit";
 
 const legacy = DEFAULT_PLANS.find(p => p.id === "adelgazar")!;
@@ -84,7 +86,8 @@ describe("Biblioteca de planes y dosificación de las fuentes", () => {
         e =>
           !old.has(e.id) &&
           e.sourceImage?.startsWith("/plans/tonificar/") &&
-          e.thumbnail.startsWith("/plans/tonificar/")
+          (e.thumbnail.startsWith("/plans/tonificar/") ||
+            e.thumbnail.startsWith("https://i.ytimg.com/vi/"))
       )
     ).toBe(true);
     expect(
@@ -92,6 +95,62 @@ describe("Biblioteca de planes y dosificación de las fuentes", () => {
         requiredPlanSets(tone, 1, 1, "beginner").includes(s)
       )
     ).toBe(false);
+  });
+  it("reemplaza solo los medios de los seis ejercicios del lunes en ambas semanas", () => {
+    const original = structuredClone(tone);
+    for (const week of ["first", "second"] as const) {
+      const monday = original.routine[week].find(day => day.day === 1)!;
+      monday.exercises.forEach((exercise, index) => {
+        exercise.videoUrl = "";
+        exercise.thumbnail = `/plans/tonificar/d1-e${index + 1}.webp`;
+      });
+    }
+    const { plan: migrated, updatedExerciseIds } =
+      replacePlanExerciseMediaFromDefault(original, tone, 1);
+    expect(updatedExerciseIds.sort()).toEqual([
+      "tone-d1-e1",
+      "tone-d1-e2",
+      "tone-d1-e3",
+      "tone-d1-e4",
+      "tone-d1-e5",
+      "tone-d1-e6",
+    ]);
+    const monday = planDay(migrated, 1, 1)!;
+    expect(monday.exercises.map(e => e.videoUrl)).toEqual([
+      "https://www.youtube.com/shorts/zaSzxo6xleY?feature=share",
+      "https://www.youtube.com/shorts/cytfxsIK_Hk",
+      "https://www.youtube.com/shorts/QjP9g7M_Idg",
+      "https://www.youtube.com/shorts/-YgMavu-_XQ",
+      "https://www.youtube.com/shorts/nmqG-tIr0hc",
+      "https://www.youtube.com/shorts/XCOq6lfsFAk",
+    ]);
+    expect(monday.exercises.map(e => getVideoEmbedUrl(e.videoUrl))).toEqual([
+      "https://www.youtube-nocookie.com/embed/zaSzxo6xleY?rel=0&playsinline=1",
+      "https://www.youtube-nocookie.com/embed/cytfxsIK_Hk?rel=0&playsinline=1",
+      "https://www.youtube-nocookie.com/embed/QjP9g7M_Idg?rel=0&playsinline=1",
+      "https://www.youtube-nocookie.com/embed/-YgMavu-_XQ?rel=0&playsinline=1",
+      "https://www.youtube-nocookie.com/embed/nmqG-tIr0hc?rel=0&playsinline=1",
+      "https://www.youtube-nocookie.com/embed/XCOq6lfsFAk?rel=0&playsinline=1",
+    ]);
+    expect(monday.exercises.map(e => e.thumbnail)).toEqual([
+      "https://i.ytimg.com/vi/zaSzxo6xleY/hqdefault.jpg",
+      "https://i.ytimg.com/vi/cytfxsIK_Hk/hqdefault.jpg",
+      "https://i.ytimg.com/vi/QjP9g7M_Idg/hqdefault.jpg",
+      "https://i.ytimg.com/vi/-YgMavu-_XQ/hqdefault.jpg",
+      "https://i.ytimg.com/vi/nmqG-tIr0hc/hqdefault.jpg",
+      "https://i.ytimg.com/vi/XCOq6lfsFAk/hqdefault.jpg",
+    ]);
+    expect(monday.sourceImage).toBe("/plans/tonificar/day-1.webp");
+    expect(monday.exercises.map(e => [e.sets, e.reps])).toEqual(
+      planDay(tone, 1, 1)!.exercises.map(e => [e.sets, e.reps])
+    );
+    expect(planDay(migrated, 1, 2)!.exercises[0].thumbnail).toBe(
+      "/plans/tonificar/d2-e1.webp"
+    );
+    expect(planDay(migrated, 1, 2)!.exercises[0].videoUrl).toBe("");
+    expect(planDay(migrated, 4, 1)!.exercises.map(e => e.videoUrl)).toEqual(
+      monday.exercises.map(e => e.videoUrl)
+    );
   });
   it("calcula atrasos solo de los días propios del plan y respeta su fecha de inscripción", () => {
     vi.useFakeTimers();
