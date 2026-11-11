@@ -403,35 +403,65 @@ const TONE_DAYS: RoutineDay[] = [
         1,
         "Sentadillas libres",
         "10 repeticiones",
-        "La lámina indica subir el peso en cada serie; adapta la carga a tu técnica."
+        "La lámina indica subir el peso en cada serie; adapta la carga a tu técnica.",
+        {
+          video: toneVideo(
+            "5c6mAD-7G8A",
+            "https://www.youtube.com/shorts/5c6mAD-7G8A"
+          ),
+        }
       ),
       toneExercise(
         5,
         2,
         "Peso muerto",
         "10 repeticiones",
-        "La lámina indica subir el peso en cada serie. Mantén el movimiento controlado."
+        "La lámina indica subir el peso en cada serie. Mantén el movimiento controlado.",
+        {
+          video: toneVideo(
+            "nA4PE0OTty4",
+            "https://www.youtube.com/shorts/nA4PE0OTty4"
+          ),
+        }
       ),
       toneExercise(
         5,
         3,
         "Hip thrust",
         "15 repeticiones",
-        "La lámina indica subir el peso en cada serie. Esta sesión tiene 15 repeticiones, no las 10 del lunes."
+        "La lámina indica subir el peso en cada serie. Esta sesión tiene 15 repeticiones, no las 10 del lunes.",
+        {
+          video: toneVideo(
+            "zaSzxo6xleY",
+            "https://www.youtube.com/shorts/zaSzxo6xleY"
+          ),
+        }
       ),
       toneExercise(
         5,
         4,
         "Aductores",
         "15 repeticiones",
-        "Con un peso sostenible. Se conserva el nombre indicado en la lámina; confirma el ajuste de la máquina con tu profesional."
+        "Con un peso sostenible. Se conserva el nombre indicado en la lámina; confirma el ajuste de la máquina con tu profesional.",
+        {
+          video: toneVideo(
+            "vlViIgtkvh4",
+            "https://www.youtube.com/shorts/vlViIgtkvh4"
+          ),
+        }
       ),
       toneExercise(
         5,
         5,
         "Abductores",
         "15 repeticiones",
-        "Con un peso sostenible. Se conserva el nombre indicado en la lámina."
+        "Con un peso sostenible. Se conserva el nombre indicado en la lámina.",
+        {
+          video: toneVideo(
+            "NRkyyIFC0os",
+            "https://www.youtube.com/shorts/NRkyyIFC0os"
+          ),
+        }
       ),
       toneExercise(
         5,
@@ -489,14 +519,17 @@ export const DEFAULT_PLANS: TrainingPlan[] = [
 export function replacePlanExerciseMediaFromDefault(
   storedPlan: TrainingPlan,
   defaultPlan: TrainingPlan,
-  dayNumber: number
+  dayNumber: number,
+  exerciseIds?: readonly string[]
 ): { plan: TrainingPlan; updatedExerciseIds: string[] } {
   const sourceDay = defaultPlan.routine.first.find(
     day => day.day === dayNumber
   );
   if (!sourceDay) return { plan: storedPlan, updatedExerciseIds: [] };
   const sourceById = new Map(
-    sourceDay.exercises.map(exercise => [exercise.id, exercise])
+    sourceDay.exercises
+      .filter(exercise => !exerciseIds || exerciseIds.includes(exercise.id))
+      .map(exercise => [exercise.id, exercise])
   );
   const updated = new Set<string>();
   const replace = (days: RoutineDay[]) =>
