@@ -5,6 +5,8 @@ const store = vi.hoisted(() => ({
   findFitUserPlan: vi.fn(),
   findFitPersonalPlan: vi.fn(),
   hasFitPlanProgress: vi.fn(),
+  currentFitPersonalPlanVersion: vi.fn(),
+  listFitPersonalPlanVersions: vi.fn(),
   saveFitPersonalPlan: vi.fn(),
   updateFitPersonalPlan: vi.fn(),
   findFitPlanEnrollment: vi.fn(),
@@ -26,6 +28,7 @@ import { registerFitPlanRoutes } from "./fit-plans";
 import {
   FitPersonalPlanExistsError,
   FitPersonalPlanLockedError,
+  FitPersonalPlanConflictError,
 } from "./fit-plan-db";
 import {
   buildPersonalPlan,
@@ -120,6 +123,8 @@ beforeEach(() => {
   store.findFitUserPlan.mockResolvedValue(null);
   store.findFitPersonalPlan.mockResolvedValue(null);
   store.hasFitPlanProgress.mockResolvedValue(false);
+  store.currentFitPersonalPlanVersion.mockResolvedValue(1);
+  store.listFitPersonalPlanVersions.mockResolvedValue([]);
   store.findFitUserById.mockResolvedValue(user);
   store.listFitPlanProgress.mockResolvedValue([]);
   store.findFitPlanProgress.mockResolvedValue(null);
@@ -153,18 +158,23 @@ describe("Rutas privadas de Plan Personal con almacenamiento mock", () => {
       "tonificar",
     ]);
   });
-  it("devuelve null sin plan y expone editabilidad por progreso del mismo dueño", async () => {
+  it("siempre permite editar y comunica progreso y edición vigente", async () => {
     expect((await harness().invoke("GET", "/personal-plan")).data).toEqual({
       plan: null,
       editable: true,
+      hasProgress: false,
+      version: 1,
     });
     store.findFitPersonalPlan.mockResolvedValue(owned);
     store.hasFitPlanProgress.mockResolvedValue(true);
-    expect(
-      (await harness().invoke("GET", "/personal-plan")).data.editable
-    ).toBe(false);
+    store.currentFitPersonalPlanVersion.mockResolvedValue(3);
+    const result = await harness().invoke("GET", "/personal-plan");
+    expect(result.data.editable).toBe(true);
+    expect(result.data.hasProgress).toBe(true);
+    expect(result.data.version).toBe(3);
     expect(store.hasFitPlanProgress).toHaveBeenCalledWith(42, plan.id);
   });
+
   it("crea UUID en servidor, ignora dueño/ID/medios y guarda matrícula para sesión real", async () => {
     const result = await harness().invoke("POST", "/personal-plan", {
       ...draft,
@@ -195,25 +205,74 @@ describe("Rutas privadas de Plan Personal con almacenamiento mock", () => {
       (await harness().invoke("POST", "/personal-plan", draft)).status
     ).toBe(409);
   });
-  it("edita el mismo ID propio e impide editar tras historial", async () => {
+  it("edita el plan propio con historial y comprueba la versión esperada", async () => {
     store.findFitPersonalPlan.mockResolvedValue(owned);
+    store.updateFitPersonalPlan.mockResolvedValue({
+      archived: true, version: 2, restarted: true,
+    });
+    const result = await harness().invoke("PUT", "/personal-plan", {
+      ...draft,
+      id: "tonificar",
+      owner_user_id: 99,
+      expectedPlan: { ...plan, isPersonal: true },
+    });
+    expect(result.status).toBe(200);
+    expect(store.updateFitPersonalPlan.mock.calls[0][0]).toBe(42);
+    expect(store.updateFitPersonalPlan.mock.calls[0][1]).toEqual(plan);
+    expect(store.updateFitPersonalPlan.mock.calls[0][2]).toEqual(plan);
+    expect(store.updateFitPersonalPlan.mock.calls[0][3]).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(result.data).toMatchObject({
+      archived: true, version: 2, restarted: true,
+    });
+
     expect(
-      (
-        await harness().invoke("PUT", "/personal-plan", {
-          ...draft,
-          id: "tonificar",
-          owner_user_id: 99,
-        })
-      ).status
-    ).toBe(200);
-    expect(store.updateFitPersonalPlan).toHaveBeenCalledWith(42, plan);
+      (await harness().invoke("PUT", "/personal-plan", draft)).status
+    ).toBe(400);
+    store.updateFitPersonalPlan.mockRejectedValue(
+      new FitPersonalPlanConflictError()
+    );
+    expect(
+      (await harness().invoke("PUT", "/personal-plan", {
+        ...draft, expectedPlan: plan,
+      })).status
+    ).toBe(409);
     store.updateFitPersonalPlan.mockRejectedValue(
       new FitPersonalPlanLockedError()
     );
     expect(
-      (await harness().invoke("PUT", "/personal-plan", draft)).status
+      (await harness().invoke("PUT", "/personal-plan", {
+        ...draft, expectedPlan: plan,
+      })).status
     ).toBe(409);
   });
+
+  it("permite consultar versiones privadas solo al dueño de la sesión", async () => {
+    store.findFitPersonalPlan.mockResolvedValue(owned);
+    store.listFitPersonalPlanVersions.mockResolvedValue([
+      {
+        user_id: 42, plan_id: plan.id, version: 1,
+        plan_payload: plan, progress_snapshot: [{
+          day_key: "w1-d7", session_level: "beginner",
+          completed_sets: '["pp-d7-curl-barra:1"]',
+          cardio_done: 0, warmup_done: 1,
+          completed_at: "2026-11-22T14:00:00.000Z",
+          updated_at: "2026-11-22T14:00:00.000Z",
+        }],
+        start_date: "2026-11-16",
+        archived_at: "2026-11-23T13:00:00.000Z",
+      },
+    ]);
+    const found = await harness().invoke("GET", "/personal-plan/versions");
+    expect(found.status).toBe(200);
+    expect(found.data.versions[0].progress[0].completedSets).toEqual([
+      "pp-d7-curl-barra:1",
+    ]);
+    expect(found.data.versions[0].plan.id).toBe(plan.id);
+    expect(store.listFitPersonalPlanVersions).toHaveBeenCalledWith(42, plan.id);
+    const unauth = await harness(null).invoke("GET", "/personal-plan/versions");
+    expect(unauth.status).toBe(401);
+  });
+
   it("no edita un inexistente ni usa el ID suministrado como fallback", async () => {
     expect(
       (
