@@ -26,6 +26,9 @@ import {
   findFitPlanEnrollment,
   findFitPlanProgress,
   findFitPersonalPlan,
+  currentFitPersonalPlanVersion,
+  listFitPersonalPlanVersions,
+  FitPersonalPlanConflictError,
   findFitUserPlan,
   findFitActivePlan,
   hasAnyFitPlanProgress,
@@ -860,9 +863,45 @@ export function registerFitPlanRoutes(
         plan: row
           ? { ...parseStoredPlan(row, deps), isPersonal: true, published: true }
           : null,
-        editable: row
-          ? !(await hasFitPlanProgress(auth.user.id, row.id))
-          : true,
+        editable: true,
+        hasProgress: row ? await hasFitPlanProgress(auth.user.id, row.id) : false,
+        version: row
+          ? await currentFitPersonalPlanVersion(auth.user.id, row.id)
+          : 1,
+      });
+    })
+  );
+
+  router.get(
+    "/personal-plan/versions",
+    route(async (req, res) => {
+      const auth = await deps.requireAuth(req);
+      const owned = await findFitPersonalPlan(auth.user.id);
+      if (!owned) {
+        res.json({ versions: [] });
+        return;
+      }
+      const archived = await listFitPersonalPlanVersions(auth.user.id, owned.id);
+      res.json({
+        versions: archived.map(row => {
+          const plan =
+            typeof row.plan_payload === "string"
+              ? JSON.parse(row.plan_payload)
+              : row.plan_payload;
+          const rows =
+            typeof row.progress_snapshot === "string"
+              ? JSON.parse(row.progress_snapshot)
+              : row.progress_snapshot;
+          return {
+            version: row.version,
+            plan,
+            startDate: dateOnly(row.start_date),
+            archivedAt: dateToIso(row.archived_at),
+            progress: (rows as FitPlanProgressRow[]).map(record =>
+              toPublicPlanProgress(record, auth.user.level)
+            ),
+          };
+        }),
       });
     })
   );
@@ -916,10 +955,16 @@ export function registerFitPlanRoutes(
       const auth = await deps.requireAuth(req);
       const row = await findFitPersonalPlan(auth.user.id);
       if (!row) deps.fail(404, "Todavía no tienes un Plan Personal.");
+      const body = deps.bodyOf(req);
+      if (!isObject(body.expectedPlan))
+        deps.fail(400, "Recargá tu Plan Personal antes de guardar los cambios.");
+      const { isPersonal: _ignored, ...expectedPlan } = body.expectedPlan;
+      if (expectedPlan.id !== row.id)
+        deps.fail(400, "La versión anterior no corresponde a tu plan.");
       let plan: TrainingPlan;
       try {
         plan = validateTrainingPlan(
-          buildPersonalPlan(row.id, deps.bodyOf(req))
+          buildPersonalPlan(row.id, body)
         );
       } catch (error) {
         if (
@@ -929,17 +974,29 @@ export function registerFitPlanRoutes(
           deps.fail(400, error.message);
         throw error;
       }
+      let edition: { archived: boolean; version: number; restarted: boolean };
       try {
-        await updateFitPersonalPlan(auth.user.id, plan);
+        edition = await updateFitPersonalPlan(
+          auth.user.id,
+          plan,
+          expectedPlan as TrainingPlan,
+          mondayInTimezone(auth.user.timezone)
+        );
       } catch (error) {
-        if (error instanceof FitPersonalPlanLockedError)
+        if (error instanceof FitPersonalPlanConflictError)
           deps.fail(
             409,
-            "Tu Plan Personal ya tiene actividad registrada. Conservamos sus ejercicios y cantidades para proteger tu historial."
+            "Tu rutina cambió desde que la abriste. Volvé a cargarla antes de editar."
           );
+        if (error instanceof FitPersonalPlanLockedError)
+          deps.fail(409, "No se pudo actualizar tu Plan Personal. Volvé a cargarlo.");
         throw error;
       }
-      res.json({ plan: { ...plan, isPersonal: true }, activePlanId: plan.id });
+      res.json({
+        plan: { ...plan, isPersonal: true },
+        activePlanId: plan.id,
+        ...edition,
+      });
     })
   );
 
@@ -1217,6 +1274,41 @@ export function registerFitPlanRoutes(
       }
       if (!progress) deps.fail(500, "No se pudo guardar el progreso");
       res.json({ progress: toPublicPlanProgress(progress, sessionLevel) });
+    })
+  );
+
+  router.get(
+    "/admin/users/:id/personal-plan/versions",
+    route(async (req, res) => {
+      const auth = await deps.requireAuth(req);
+      requireAdmin(auth, deps);
+      const userId = Number(req.params.id);
+      if (!Number.isSafeInteger(userId) || userId < 1)
+        deps.fail(400, "El id de usuario no es válido");
+      const owned = await findFitPersonalPlan(userId);
+      if (!owned) {
+        res.json({ versions: [] });
+        return;
+      }
+      const versions = await listFitPersonalPlanVersions(userId, owned.id);
+      res.json({
+        versions: versions.map(row => ({
+          version: row.version,
+          plan:
+            typeof row.plan_payload === "string"
+              ? JSON.parse(row.plan_payload)
+              : row.plan_payload,
+          startDate: dateOnly(row.start_date),
+          archivedAt: dateToIso(row.archived_at),
+          progress: (
+            typeof row.progress_snapshot === "string"
+              ? JSON.parse(row.progress_snapshot)
+              : row.progress_snapshot
+          ).map((record: FitPlanProgressRow) =>
+            toPublicPlanProgress(record, auth.user.level)
+          ),
+        })),
+      });
     })
   );
 
