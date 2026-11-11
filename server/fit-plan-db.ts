@@ -509,12 +509,24 @@ export async function listFitPersonalPlanVersions(
 ): Promise<FitPersonalPlanVersionRow[]> {
   return selectRows<FitPersonalPlanVersionRow>(
     `SELECT user_id, plan_id, version, plan_payload, progress_snapshot,
-            start_date, archived_at
+            DATE_FORMAT(start_date, '%Y-%m-%d') AS start_date, archived_at
        FROM fit_personal_plan_versions
       WHERE user_id = ? AND plan_id = ?
       ORDER BY version DESC`,
     [userId, planId]
   );
+}
+
+export async function currentFitPersonalPlanVersion(
+  userId: number,
+  planId: string
+): Promise<number> {
+  const rows = await selectRows<RowDataPacket>(
+    `SELECT COALESCE(MAX(version), 0) + 1 AS current_version
+       FROM fit_personal_plan_versions WHERE user_id = ? AND plan_id = ?`,
+    [userId, planId]
+  );
+  return Number(rows[0]?.current_version ?? 1);
 }
 
 function readPlanPayload(value: string | TrainingPlan): TrainingPlan {
@@ -562,7 +574,7 @@ export async function updateFitPersonalPlan(
     }
 
     const [enrollments] = await connection.execute<FitPlanEnrollmentRow[]>(
-      "SELECT start_date FROM fit_plan_enrollments WHERE user_id = ? AND plan_id = ? FOR UPDATE",
+      "SELECT DATE_FORMAT(start_date, '%Y-%m-%d') AS start_date FROM fit_plan_enrollments WHERE user_id = ? AND plan_id = ? FOR UPDATE",
       [userId, plan.id]
     );
     if (!enrollments[0]) throw new Error("Personal plan enrollment not found");
