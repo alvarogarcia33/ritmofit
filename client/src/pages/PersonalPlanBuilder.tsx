@@ -19,6 +19,7 @@ import {
   LockKeyhole,
   Plus,
   Search,
+  ShieldCheck,
   Trash2,
   X,
 } from "lucide-react";
