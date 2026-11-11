@@ -59,6 +59,13 @@ export const EXERCISE_MUSCLE_GROUPS: ExerciseMuscleGroup[] = [
     id: "pecho",
     name: "Pecho",
     exercises: [
+      exercise("press-pecho-maquina", "Press de pecho en máquina", "pecho"),
+      exercise(
+        "flexiones-brazos",
+        "Flexiones de brazos",
+        "pecho",
+        bodyweightTip
+      ),
       exercise("press-plano-barra", "Press plano con barra", "pecho"),
       exercise("press-plano-mancuernas", "Press plano con mancuernas", "pecho"),
       exercise("press-inclinado-barra", "Press inclinado con barra", "pecho"),
@@ -75,6 +82,23 @@ export const EXERCISE_MUSCLE_GROUPS: ExerciseMuscleGroup[] = [
     id: "espalda",
     name: "Espalda",
     exercises: [
+      exercise(
+        "jalon-polea-agarre-v",
+        "Jalón en polea alta con agarre V",
+        "espalda",
+        "Mantené el torso estable y llevá el agarre hacia la parte alta del pecho sin balancearte."
+      ),
+      exercise(
+        "dominadas-asistidas",
+        "Dominadas asistidas",
+        "espalda",
+        "Ajustá la asistencia para subir y bajar con control, sin impulsarte."
+      ),
+      exercise(
+        "remo-maquina-pecho-apoyado",
+        "Remo en máquina con pecho apoyado",
+        "espalda"
+      ),
       exercise("jalon-al-pecho", "Jalón al pecho", "espalda"),
       exercise("remo-barra", "Remo con barra", "espalda"),
       exercise("remo-mancuerna", "Remo con mancuerna", "espalda"),
@@ -87,6 +111,12 @@ export const EXERCISE_MUSCLE_GROUPS: ExerciseMuscleGroup[] = [
     id: "hombros",
     name: "Hombros",
     exercises: [
+      exercise("press-arnold", "Press Arnold con mancuernas", "hombros"),
+      exercise(
+        "elevaciones-laterales-polea",
+        "Elevaciones laterales en polea",
+        "hombros"
+      ),
       exercise("press-militar", "Press militar", "hombros"),
       exercise("elevaciones-laterales", "Elevaciones laterales", "hombros"),
       exercise("elevaciones-frontales", "Elevaciones frontales", "hombros"),
@@ -97,6 +127,16 @@ export const EXERCISE_MUSCLE_GROUPS: ExerciseMuscleGroup[] = [
     id: "biceps",
     name: "Bíceps",
     exercises: [
+      exercise(
+        "curl-biceps-polea-baja",
+        "Curl de bíceps en polea baja",
+        "biceps"
+      ),
+      exercise(
+        "curl-inclinado-mancuernas",
+        "Curl inclinado con mancuernas",
+        "biceps"
+      ),
       exercise("curl-barra", "Curl de bíceps con barra", "biceps"),
       exercise("curl-alterno", "Curl alterno con mancuernas", "biceps"),
       exercise("curl-martillo", "Curl martillo", "biceps"),
@@ -107,6 +147,16 @@ export const EXERCISE_MUSCLE_GROUPS: ExerciseMuscleGroup[] = [
     id: "triceps",
     name: "Tríceps",
     exercises: [
+      exercise(
+        "press-banca-agarre-cerrado",
+        "Press de banca con agarre cerrado",
+        "triceps"
+      ),
+      exercise(
+        "patada-triceps-mancuerna",
+        "Patada de tríceps con mancuerna",
+        "triceps"
+      ),
       exercise("extension-polea", "Extensión de tríceps en polea", "triceps"),
       exercise(
         "extension-sobre-cabeza",
@@ -126,6 +176,12 @@ export const EXERCISE_MUSCLE_GROUPS: ExerciseMuscleGroup[] = [
     id: "cuadriceps",
     name: "Cuádriceps",
     exercises: [
+      exercise("sentadilla-hack", "Sentadilla hack en máquina", "cuadriceps"),
+      exercise(
+        "sentadilla-goblet",
+        "Sentadilla goblet con mancuerna",
+        "cuadriceps"
+      ),
       exercise(
         "sentadilla-libre",
         "Sentadilla libre",
@@ -147,6 +203,17 @@ export const EXERCISE_MUSCLE_GROUPS: ExerciseMuscleGroup[] = [
     id: "femorales",
     name: "Femorales",
     exercises: [
+      exercise(
+        "curl-femoral-pie",
+        "Curl femoral de pie en máquina",
+        "femorales"
+      ),
+      exercise(
+        "curl-femoral-fitball",
+        "Curl femoral con pelota de estabilidad",
+        "femorales",
+        bodyweightTip
+      ),
       exercise("peso-muerto-rumano", "Peso muerto rumano", "femorales"),
       exercise("curl-femoral-sentado", "Curl femoral sentado", "femorales"),
       exercise("curl-femoral-tumbado", "Curl femoral tumbado", "femorales"),
@@ -157,6 +224,17 @@ export const EXERCISE_MUSCLE_GROUPS: ExerciseMuscleGroup[] = [
     id: "gluteos",
     name: "Glúteos",
     exercises: [
+      exercise(
+        "pull-through-polea",
+        "Pull-through en polea baja",
+        "gluteos"
+      ),
+      exercise(
+        "step-up-banco",
+        "Subida al banco (step-up)",
+        "gluteos",
+        bodyweightTip
+      ),
       exercise("hip-thrust", "Hip thrust", "gluteos"),
       exercise("puente-gluteos", "Puente de glúteos", "gluteos", bodyweightTip),
       exercise("patada-polea", "Patada de glúteo en polea", "gluteos"),
@@ -167,6 +245,17 @@ export const EXERCISE_MUSCLE_GROUPS: ExerciseMuscleGroup[] = [
     id: "aductores",
     name: "Aductores",
     exercises: [
+      exercise(
+        "aduccion-polea-baja",
+        "Aducción de cadera en polea baja",
+        "aductores"
+      ),
+      exercise(
+        "aduccion-acostado",
+        "Aducción de cadera acostado de lado",
+        "aductores",
+        bodyweightTip
+      ),
       exercise("aductores-maquina", "Aductores en máquina", "aductores"),
     ],
   },
@@ -174,6 +263,18 @@ export const EXERCISE_MUSCLE_GROUPS: ExerciseMuscleGroup[] = [
     id: "abductores",
     name: "Abductores",
     exercises: [
+      exercise(
+        "clamshell-banda",
+        "Apertura de cadera con banda (clamshell)",
+        "abductores",
+        bodyweightTip
+      ),
+      exercise(
+        "elevacion-lateral-acostado",
+        "Elevación lateral de pierna acostado",
+        "abductores",
+        bodyweightTip
+      ),
       exercise("abductores-maquina", "Abductores en máquina", "abductores"),
       exercise("abduccion-polea", "Abducción de cadera en polea", "abductores"),
       exercise(
@@ -188,6 +289,17 @@ export const EXERCISE_MUSCLE_GROUPS: ExerciseMuscleGroup[] = [
     id: "pantorrillas",
     name: "Pantorrillas",
     exercises: [
+      exercise(
+        "pantorrillas-una-pierna",
+        "Elevación de pantorrillas a una pierna",
+        "pantorrillas",
+        bodyweightTip
+      ),
+      exercise(
+        "pantorrillas-donkey",
+        "Elevación de pantorrillas inclinado (donkey)",
+        "pantorrillas"
+      ),
       exercise(
         "pantorrillas-de-pie",
         "Elevación de pantorrillas de pie",
@@ -205,6 +317,19 @@ export const EXERCISE_MUSCLE_GROUPS: ExerciseMuscleGroup[] = [
     id: "core",
     name: "Abdomen y core",
     exercises: [
+      exercise(
+        "plancha-lateral",
+        "Plancha lateral",
+        "core",
+        "Mantené el cuerpo alineado, sin hundir la cadera. Realizá el tiempo indicado por cada lado.",
+        "segundos",
+        30
+      ),
+      exercise(
+        "crunch-polea-alta",
+        "Crunch abdominal en polea alta",
+        "core"
+      ),
       exercise(
         "plancha-frontal",
         "Plancha frontal",
