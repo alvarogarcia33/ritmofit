@@ -22,19 +22,25 @@ La app evoluciona de una rutina única a varios planes. El plan actual se identi
 
 React/Express existentes continúan en el mismo servidor y MySQL administrado. Un modelo compartido de plan envuelve las rutinas originales y admite ejercicios con cantidades específicas. Las APIs de autenticación actuales siguen intactas. Nuevas tablas de catálogo, inscripciones y progreso por plan se agregan de forma idempotente. Los datos actuales de `fit_progress` permanecen intactos y se tratan como Adelgazar; los demás programas se guardan con `(user_id, plan_id, day_key)`. No se elimina ni reemplaza la base existente. El catálogo conserva posteriores ediciones administrativas y valida IDs, colores, URLs, días y cantidades en servidor.
 
+El cartel inferior de la biblioteca se convertirá en una acción para diseñar/editar un único Plan Personal por cuenta. Un catálogo compartido `shared/exercise-library.ts` agrupa ejercicios por músculo (pecho, espalda, hombros, brazos, piernas, glúteos, aductores/abductores, pantorrillas y core); el usuario selecciona días de lunes a domingo, incorpora ejercicios permitidos y configura series (1–10) y repeticiones (1–100), con 3 × 10 como valor inicial. La API reconstruye los ejercicios desde el catálogo validado: el navegador no puede elegir otro propietario, portada, URL, ID ni rol. El servidor persiste cada Plan Personal dentro del catálogo existente con `owner_user_id`, ID aleatorio globalmente único y un índice único de propietario; las consultas globales excluyen esas filas y las rutas ordinarias solo las devuelven al dueño. Se reutilizan matrícula, selección activa y progreso por pareja usuario/plan; guardar la rutina la selecciona y abre la experiencia existente. Al comenzar progreso se protege la estructura para no desalinear registros anteriores. El Plan Personal usa una portada estándar compartida, color propio y modo de series directas; no inventa videos ni cardio.
+
+Cada día seleccionado admite entre 1 y 20 ejercicios, sin duplicados dentro del día, y permite ordenarlos. La plancha se configura por duración de 1–3600 segundos, con 30 segundos iniciales y 3 series. Los días sin ejercicios quedan libres. La creación y actualización son transaccionales; edición y primer progreso bloquean la misma fila para que una sesión no se guarde contra una versión antigua. Antes de registrar actividad se permite modificar la rutina; después se conserva su estructura y se puede seguir entrenando o ajustar el descanso desde el reloj existente.
+
 El inicio de sesión o registro es la primera pantalla y la única ruta de la app disponible sin una cuenta autenticada. Tras autenticar, se abre la biblioteca de planes; entrenamiento, programa, historial, ajustes y administración requieren sesión. El servidor también protege el catálogo para que no se pueda listar por API sin autenticación. La sesión persistida permite volver a la app sin iniciar sesión repetidamente; al cerrar sesión, se regresa al acceso. Administración conserva además su control de rol. Las APIs privadas aíslan datos por usuario autenticado y plan solicitado. La administración tiene vistas de usuarios filtradas por plan y gestión de catálogo: tarjetas, nombre, descripción, color, imagen, días y ejercicios. Los planes nuevos se pueden preparar en borrador antes de mostrarlos; los identificadores de ejercicios son estables para no alterar historias.
 
 ## Estructura del proyecto
 
 - `shared/programs.ts`: tipos, catálogo inicial Adelgazar/Tonificar y helpers de dosificación, días, series y progreso esperado.
+- `shared/exercise-library.ts`: grupos musculares, catálogo tipado de ejercicios y constructor/validador del Plan Personal.
 - `shared/routine.ts` y `shared/video-alternatives.ts`: datos originales de Adelgazar, sin cambios de orden o cantidades.
 - `client/src/contexts/FitContext.tsx`: cuenta, catálogo, plan activo, inscripciones, progreso y selección persistente.
 - `client/src/pages/Plans.tsx`: pantalla de selección y continuación mostrada después de autenticarse.
+- `client/src/pages/PersonalPlanBuilder.tsx`: selección de días, grupos, ejercicios, series y repeticiones; guarda/edita el plan propio.
 - `client/src/pages/Home.tsx`: entrenamiento del plan seleccionado, series, demostraciones, reloj y estrellas.
 - `Program.tsx`, `Progress.tsx`, `Settings.tsx`: programa, historial y preferencias conscientes del plan.
 - `client/src/pages/PlanAdmin.tsx`: creación/edición de catálogo desde formularios, protegida por rol.
 - `server/fit-plans.ts`: nuevas APIs del catálogo y progreso, con validación y autorización.
-- `server/fit-plan-db.ts`: tablas aditivas, catálogo persistente y almacenamiento de inscripciones/progreso.
+- `server/fit-plan-db.ts`: columna/índice de propietario aditivos, operaciones de catálogo global o propio, inscripciones y progreso; sin leer ni escribir filas privadas ajenas.
 - `client/public/plans/tonificar/`: referencias optimizadas a partir de las láminas aportadas; los originales no se sobrescriben.
 
 ## Diseño
@@ -44,6 +50,8 @@ Se conserva el sistema visual fitness editorial: tipografía Manrope/DM Sans, bl
 La opción 2, Tonificar / Fuerza + control, recibe una portada fotográfica original de entrenamiento de fuerza, horizontal, sin texto incrustado y en tonos violeta. Los rótulos existentes de la tarjeta se conservan. La imagen generada sustituye solo `coverImage`, con persistencia idempotente de una sola ejecución; no se reemplazan láminas de ejercicio ni se modifica el plan Adelgazar.
 
 La opción 1, Adelgazar / Fuerza + movimiento, también recibe una portada fotográfica original: entrenamiento dinámico con mancuernas en rosa/fucsia, composición horizontal 3:2 y espacio para el título y número existentes. Se sustituye únicamente `coverImage`, con una migración independiente de una sola ejecución que respeta futuras ediciones administrativas. Se conservan íntegros todos los ejercicios, videos, niveles, progreso y el plan Tonificar.
+
+El constructor reutiliza el lenguaje visual de los dos planes y crea tarjetas/timer en color teal propio para Plan Personal. En celular primero se elige el día, luego se abre un grupo muscular y se agregan ejercicios; una bandeja persistente permite ajustar dosis y confirmar. Si un ejercicio aún no tiene video o lámina específica, muestra sus indicaciones y un estado explícito en lugar de presentar una imagen genérica como si fuera demostración.
 
 ## Limitaciones explícitas
 

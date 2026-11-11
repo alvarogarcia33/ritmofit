@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response, Router } from "express";
+import { randomUUID } from "node:crypto";
 import {
   DEFAULT_PLANS,
   LEGACY_PLAN_ID,
@@ -9,6 +10,12 @@ import {
   type TrainingPlan,
 } from "../shared/programs";
 import {
+  buildPersonalPlan,
+  PERSONAL_PLAN_ADMIN_FILTER_ID,
+  PERSONAL_PLAN_ID_PREFIX,
+  PersonalPlanInputError,
+} from "../shared/exercise-library";
+import {
   LEVELS,
   type Exercise,
   type Level,
@@ -18,8 +25,11 @@ import {
   findFitPlan,
   findFitPlanEnrollment,
   findFitPlanProgress,
+  findFitPersonalPlan,
+  findFitUserPlan,
   findFitActivePlan,
   hasAnyFitPlanProgress,
+  hasFitPlanProgress,
   insertFitPlan,
   listFitPlanEnrollments,
   listFitPlanProgress,
@@ -27,6 +37,10 @@ import {
   saveFitActivePlan,
   saveFitPlanEnrollment,
   saveFitPlanProgress,
+  saveFitPersonalPlan,
+  FitPersonalPlanExistsError,
+  FitPersonalPlanLockedError,
+  updateFitPersonalPlan,
   updateFitPlan,
   type FitPlanEnrollmentRow,
   type FitPlanProgressRow,
@@ -262,7 +276,10 @@ function validateExercise(
       PLAN_TEXT_LIMITS.exerciseName[1]
     ),
     videoUrl: videoUrl(value.videoUrl, `${field}.videoUrl`),
-    thumbnail: safeHttpsOrRelative(value.thumbnail, `${field}.thumbnail`),
+    thumbnail:
+      value.thumbnail === ""
+        ? ""
+        : safeHttpsOrRelative(value.thumbnail, `${field}.thumbnail`),
     block: integer(value.block, `${field}.block`, 1, 9),
     tips: text(
       value.tips,
@@ -327,7 +344,7 @@ function validateDay(
     ids.add(exercise.id);
   }
   const result: RoutineDay = {
-    day: integer(value.day, `${field}.day`, 1, 6),
+    day: integer(value.day, `${field}.day`, 1, 7),
     label: text(
       value.label,
       `${field}.label`,
@@ -364,8 +381,8 @@ function validateRoutine(
   mode: TrainingPlan["mode"],
   draft = false
 ): RoutineDay[] {
-  if (!Array.isArray(value) || (!draft && value.length < 1) || value.length > 6)
-    invalid(`${field} debe contener entre 1 y 6 días`);
+  if (!Array.isArray(value) || (!draft && value.length < 1) || value.length > 7)
+    invalid(`${field} debe contener entre 1 y 7 días`);
   const days = value.map((item, index) =>
     validateDay(item, `${field}[${index}]`, mode, draft)
   );
@@ -583,11 +600,16 @@ function parseStoredPlan(
 
 async function getPlanOrFail(
   planIdValue: string,
-  deps: FitPlanRouteDeps
+  deps: FitPlanRouteDeps,
+  ownerUserId?: number
 ): Promise<TrainingPlan> {
-  const row = await findFitPlan(planIdValue);
+  const personalRow = ownerUserId
+    ? await findFitUserPlan(ownerUserId, planIdValue)
+    : null;
+  const row = personalRow ?? (await findFitPlan(planIdValue));
   if (!row) deps.fail(404, "Plan no encontrado");
-  return parseStoredPlan(row, deps);
+  const plan = parseStoredPlan(row, deps);
+  return personalRow ? { ...plan, isPersonal: true, published: true } : plan;
 }
 
 function enrollmentFromRow(row: FitPlanEnrollmentRow): PlanEnrollment {
@@ -642,7 +664,10 @@ async function stateForUser(
     )
   );
   const active = await findFitActivePlan(user.id);
-  const selected = active ? await findFitPlan(active.plan_id) : null;
+  const selected = active
+    ? ((await findFitUserPlan(user.id, active.plan_id)) ??
+      (await findFitPlan(active.plan_id)))
+    : null;
   const selectedIsPublished = selected
     ? parseStoredPlan(selected, deps).published
     : false;
@@ -707,7 +732,7 @@ function parsePlanDayKey(
   plan: TrainingPlan,
   fail: FitPlanRouteDeps["fail"]
 ): { week: number; day: number } {
-  const match = /^w(\d{1,2})-d([1-6])$/.exec(dayKey);
+  const match = /^w(\d{1,2})-d([1-7])$/.exec(dayKey);
   if (!match) fail(400, "dayKey no es válido para este plan");
   const week = Number(match[1]);
   const day = Number(match[2]);
@@ -782,6 +807,15 @@ function requireAdmin(auth: Authenticated, deps: FitPlanRouteDeps): void {
     deps.fail(403, "Se requiere rol de administrador");
 }
 
+function isDuplicateDbError(error: unknown): boolean {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "ER_DUP_ENTRY"
+  );
+}
+
 function assertSafeRestSeconds(value: unknown, field: string): number {
   if (
     typeof value !== "number" ||
@@ -800,12 +834,112 @@ export function registerFitPlanRoutes(
   router.get(
     "/plans",
     route(async (req, res) => {
-      await deps.requireAuth(req);
+      const auth = await deps.requireAuth(req);
       const rows = await listFitPlans();
       const plans = rows
         .map(row => parseStoredPlan(row, deps))
         .filter(plan => plan.published);
+      const personalRow = await findFitPersonalPlan(auth.user.id);
+      if (personalRow) {
+        plans.push({
+          ...parseStoredPlan(personalRow, deps),
+          isPersonal: true,
+          published: true,
+        });
+      }
       res.json({ plans });
+    })
+  );
+
+  router.get(
+    "/personal-plan",
+    route(async (req, res) => {
+      const auth = await deps.requireAuth(req);
+      const row = await findFitPersonalPlan(auth.user.id);
+      res.json({
+        plan: row
+          ? { ...parseStoredPlan(row, deps), isPersonal: true, published: true }
+          : null,
+        editable: row
+          ? !(await hasFitPlanProgress(auth.user.id, row.id))
+          : true,
+      });
+    })
+  );
+
+  router.post(
+    "/personal-plan",
+    route(async (req, res) => {
+      const auth = await deps.requireAuth(req);
+      let plan: TrainingPlan;
+      try {
+        plan = validateTrainingPlan(
+          buildPersonalPlan(
+            `${PERSONAL_PLAN_ID_PREFIX}${randomUUID()}`,
+            deps.bodyOf(req)
+          )
+        );
+      } catch (error) {
+        if (error instanceof PersonalPlanInputError)
+          deps.fail(400, error.message);
+        throw error;
+      }
+      try {
+        await saveFitPersonalPlan({
+          userId: auth.user.id,
+          plan,
+          startDate: mondayInTimezone(auth.user.timezone),
+          level: auth.user.level,
+          restSeconds: plan.restSeconds,
+        });
+      } catch (error) {
+        if (
+          error instanceof FitPersonalPlanExistsError ||
+          isDuplicateDbError(error)
+        )
+          deps.fail(
+            409,
+            "Ya tienes un Plan Personal. Ábrelo desde tu biblioteca."
+          );
+        throw error;
+      }
+      res.status(201).json({
+        plan: { ...plan, isPersonal: true, published: true },
+        activePlanId: plan.id,
+      });
+    })
+  );
+
+  router.put(
+    "/personal-plan",
+    route(async (req, res) => {
+      const auth = await deps.requireAuth(req);
+      const row = await findFitPersonalPlan(auth.user.id);
+      if (!row) deps.fail(404, "Todavía no tienes un Plan Personal.");
+      let plan: TrainingPlan;
+      try {
+        plan = validateTrainingPlan(
+          buildPersonalPlan(row.id, deps.bodyOf(req))
+        );
+      } catch (error) {
+        if (
+          error instanceof PersonalPlanInputError ||
+          error instanceof PlanValidationError
+        )
+          deps.fail(400, error.message);
+        throw error;
+      }
+      try {
+        await updateFitPersonalPlan(auth.user.id, plan);
+      } catch (error) {
+        if (error instanceof FitPersonalPlanLockedError)
+          deps.fail(
+            409,
+            "Tu Plan Personal ya tiene actividad registrada. Conservamos sus ejercicios y cantidades para proteger tu historial."
+          );
+        throw error;
+      }
+      res.json({ plan: { ...plan, isPersonal: true }, activePlanId: plan.id });
     })
   );
 
@@ -888,7 +1022,7 @@ export function registerFitPlanRoutes(
     route(async (req, res) => {
       const auth = await deps.requireAuth(req);
       const id = planIdParam(String(req.params.id), deps.fail);
-      const plan = await getPlanOrFail(id, deps);
+      const plan = await getPlanOrFail(id, deps, auth.user.id);
       const body = deps.bodyOf(req);
       if (plan.mode === "straight" && body.level !== undefined) {
         deps.fail(
@@ -988,7 +1122,7 @@ export function registerFitPlanRoutes(
     route(async (req, res) => {
       const auth = await deps.requireAuth(req);
       const id = planIdParam(String(req.params.id), deps.fail);
-      await getPlanOrFail(id, deps);
+      await getPlanOrFail(id, deps, auth.user.id);
       if (id === LEGACY_PLAN_ID) {
         const enrollment = legacyEnrollment(auth.user);
         const progress = await listFitProgress(auth.user.id);
@@ -1015,7 +1149,7 @@ export function registerFitPlanRoutes(
       const auth = await deps.requireAuth(req);
       const id = planIdParam(String(req.params.id), deps.fail);
       const dayKey = String(req.params.dayKey);
-      const plan = await getPlanOrFail(id, deps);
+      const plan = await getPlanOrFail(id, deps, auth.user.id);
       const body = deps.bodyOf(req);
       if (id === LEGACY_PLAN_ID) {
         parseLegacyDayKey(dayKey, deps.fail);
@@ -1058,17 +1192,29 @@ export function registerFitPlanRoutes(
         body,
         deps.fail
       );
-      const progress = await saveFitPlanProgress({
-        userId: auth.user.id,
-        planId: id,
-        dayKey,
-        sessionLevel,
-        requiredSets: JSON.stringify(sanitized.requiredSets),
-        completedSets: JSON.stringify(sanitized.completedSets),
-        cardioDone: sanitized.cardioDone,
-        warmupDone: sanitized.warmupDone,
-        completedAt: sanitized.completedAt,
-      });
+      const { isPersonal, ...storedPlan } = plan;
+      let progress: FitPlanProgressRow | null;
+      try {
+        progress = await saveFitPlanProgress({
+          userId: auth.user.id,
+          planId: id,
+          dayKey,
+          sessionLevel,
+          requiredSets: JSON.stringify(sanitized.requiredSets),
+          completedSets: JSON.stringify(sanitized.completedSets),
+          cardioDone: sanitized.cardioDone,
+          warmupDone: sanitized.warmupDone,
+          completedAt: sanitized.completedAt,
+          ...(isPersonal ? { expectedPersonalPlan: storedPlan } : {}),
+        });
+      } catch (error) {
+        if (error instanceof FitPersonalPlanLockedError)
+          deps.fail(
+            409,
+            "La rutina cambió mientras entrenabas. Recarga el plan antes de guardar tu progreso."
+          );
+        throw error;
+      }
       if (!progress) deps.fail(500, "No se pudo guardar el progreso");
       res.json({ progress: toPublicPlanProgress(progress, sessionLevel) });
     })
@@ -1082,10 +1228,24 @@ export function registerFitPlanRoutes(
       const userId = Number(req.params.id);
       if (!Number.isSafeInteger(userId) || userId < 1)
         deps.fail(400, "El id de usuario no es válido");
-      const planIdValue = planIdParam(String(req.params.planId), deps.fail);
+      const requestedPlanId = planIdParam(String(req.params.planId), deps.fail);
       const user = await findFitUserById(userId);
       if (!user) deps.fail(404, "Usuario no encontrado");
-      const plan = await getPlanOrFail(planIdValue, deps);
+      const personalRow =
+        requestedPlanId === PERSONAL_PLAN_ADMIN_FILTER_ID
+          ? await findFitPersonalPlan(userId)
+          : null;
+      if (requestedPlanId === PERSONAL_PLAN_ADMIN_FILTER_ID && !personalRow) {
+        res.json({
+          user: deps.toPublicFitUser(user),
+          progress: [],
+          enrollment: null,
+          plan: null,
+        });
+        return;
+      }
+      const planIdValue = personalRow?.id ?? requestedPlanId;
+      const plan = await getPlanOrFail(planIdValue, deps, userId);
       const enrollment = await effectiveEnrollment(user, planIdValue);
       const progress =
         planIdValue === LEGACY_PLAN_ID

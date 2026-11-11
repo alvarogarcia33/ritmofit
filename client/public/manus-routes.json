@@ -2,6 +2,7 @@
   "routes": [
     { "path": "/", "title": "Mis planes · Ritmo Fit" },
     { "path": "/planes", "title": "Biblioteca de planes" },
+    { "path": "/plan-personal", "title": "Diseñar Plan Personal · Ritmo Fit" },
     { "path": "/entrenamiento", "title": "Mi entrenamiento" },
     { "path": "/programa", "title": "Mi programa" },
     { "path": "/progreso", "title": "Mi progreso por plan" },

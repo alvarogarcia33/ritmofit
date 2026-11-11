@@ -48,6 +48,7 @@ import {
   planTotalSessions,
   plannedExercises,
 } from "@shared/programs";
+import { PERSONAL_PLAN_ID_PREFIX } from "@shared/exercise-library";
 import { VIDEO_ALTERNATIVES } from "@shared/video-alternatives";
 
 type Demonstration = Pick<
@@ -68,6 +69,9 @@ export default function Home() {
     updatePlanPreferences,
     writeProgress,
   } = useFit();
+  const isPersonalPlan = Boolean(
+    plan.isPersonal || planId.startsWith(PERSONAL_PLAN_ID_PREFIX)
+  );
   const [, navigate] = useLocation();
   const search = useSearch();
   const [week, setWeek] = useState(1),
@@ -540,7 +544,9 @@ export default function Home() {
                   <h3>
                     {plan.mode === "supersets"
                       ? `Así funciona tu nivel ${config.label.toLowerCase()}`
-                      : "Las cantidades vienen de tus láminas"}
+                      : isPersonalPlan
+                        ? "Tu selección, a tu ritmo"
+                        : "Las cantidades vienen de tus láminas"}
                   </h3>
                   {plan.mode === "supersets" ? (
                     <>
@@ -606,7 +612,7 @@ export default function Home() {
                   <Check size={14} />
                 </button>
               </div>
-              {routine!.sourceImage && (
+              {!isPersonalPlan && routine!.sourceImage && (
                 <a
                   href={routine!.sourceImage}
                   target="_blank"
@@ -648,7 +654,9 @@ export default function Home() {
                           : block === 2
                             ? "INTERMEDIO"
                             : "AVANZADO"
-                        : "LÁMINA ORIGINAL"}
+                        : isPersonalPlan
+                          ? "TU SELECCIÓN"
+                          : "LÁMINA ORIGINAL"}
                     </span>
                   </div>
                   <div className="exercise-list">
@@ -673,51 +681,82 @@ export default function Home() {
                             className={`exercise-row ${done ? "completed" : ""} ${plan.mode === "straight" ? "illustrated-exercise" : ""}`}
                             key={e.id}
                           >
-                            <button
-                              className="exercise-thumbnail"
-                              aria-label={`Ver cómo hacer ${e.name}`}
-                              onClick={() => setVideo(e)}
-                            >
-                              <img
-                                src={e.thumbnail}
-                                alt={e.name}
-                                loading="lazy"
-                              />
-                              <span>
-                                {plan.mode === "straight" && !e.videoUrl ? (
-                                  <ImageIcon size={16} />
+                            {isPersonalPlan ? (
+                              <div
+                                className="exercise-thumbnail exercise-thumbnail-empty"
+                                aria-hidden="true"
+                              >
+                                <Dumbbell size={27} strokeWidth={1.6} />
+                              </div>
+                            ) : (
+                              <button
+                                className="exercise-thumbnail"
+                                aria-label={`Ver cómo hacer ${e.name}`}
+                                onClick={() => setVideo(e)}
+                              >
+                                {e.thumbnail?.trim() ? (
+                                  <img
+                                    src={e.thumbnail}
+                                    alt={e.name}
+                                    loading="lazy"
+                                  />
                                 ) : (
-                                  <Play size={14} fill="currentColor" />
+                                  <div
+                                    className="exercise-thumbnail-placeholder"
+                                    aria-hidden="true"
+                                  >
+                                    <Dumbbell size={24} strokeWidth={1.6} />
+                                  </div>
                                 )}
-                              </span>
-                            </button>
+                                <span>
+                                  {e.videoUrl || e.videoAlternative ? (
+                                    <Play size={14} fill="currentColor" />
+                                  ) : e.sourceImage ? (
+                                    <ImageIcon size={16} />
+                                  ) : (
+                                    <Dumbbell size={15} />
+                                  )}
+                                </span>
+                              </button>
+                            )}
                             <div className="exercise-copy">
                               <span className="exercise-order">
                                 EJERCICIO {String(index + 1).padStart(2, "0")}
                               </span>
-                              <button
-                                className="exercise-name"
-                                onClick={() => setVideo(e)}
-                              >
-                                {e.name}
-                              </button>
+                              {isPersonalPlan ? (
+                                <span className="exercise-name">{e.name}</span>
+                              ) : (
+                                <button
+                                  className="exercise-name"
+                                  onClick={() => setVideo(e)}
+                                >
+                                  {e.name}
+                                </button>
+                              )}
                               <span className="exercise-reps">{reps}</span>
                               {plan.mode === "straight" && (
                                 <small className="exercise-source-tip">
                                   {e.tips}
                                 </small>
                               )}
-                              <button
-                                className="exercise-video-link"
-                                onClick={() => setVideo(e)}
-                              >
-                                {e.videoUrl
-                                  ? "Ver demostración"
-                                  : plan.mode === "straight"
-                                    ? "Ver referencia"
-                                    : "Ver técnica"}
-                                <ArrowRight size={11} />
-                              </button>
+                              {isPersonalPlan ? (
+                                <span className="exercise-no-demo">
+                                  <Dumbbell size={13} aria-hidden="true" />
+                                  Sin demostración vinculada
+                                </span>
+                              ) : (
+                                <button
+                                  className="exercise-video-link"
+                                  onClick={() => setVideo(e)}
+                                >
+                                  {e.videoUrl
+                                    ? "Ver demostración"
+                                    : plan.mode === "straight"
+                                      ? "Ver referencia"
+                                      : "Ver técnica"}
+                                  <ArrowRight size={11} />
+                                </button>
+                              )}
                               {e.seconds && (
                                 <button
                                   className="text-link exercise-time-button"
@@ -789,7 +828,9 @@ export default function Home() {
                       : reloj de descanso {Math.floor(restSeconds / 60)}:
                       {String(restSeconds % 60).padStart(2, "0")}.
                       {plan.mode === "straight"
-                        ? " Ajustable; no indicado en las fotos."
+                        ? isPersonalPlan
+                          ? " Ajustable; opción de la app, no prescrita en tu selección."
+                          : " Ajustable; no indicado en las fotos."
                         : " Toma agua."}
                     </span>
                   </div>

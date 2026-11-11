@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { Link, useLocation } from "wouter";
 import {
   ArrowRight,
@@ -6,13 +6,21 @@ import {
   Check,
   Dumbbell,
   Layers3,
+  LockKeyhole,
   Sparkles,
   Star,
 } from "lucide-react";
 import { toast } from "sonner";
 import { FitLayout } from "@/components/FitLayout";
 import { useFit } from "@/contexts/FitContext";
-import { planDays, planTotalSessions } from "@shared/programs";
+import { api } from "@/lib/fit";
+import {
+  planDays,
+  planTotalSessions,
+  type TrainingPlan,
+} from "@shared/programs";
+
+type PersonalPlanState = { plan: TrainingPlan; editable: boolean };
 
 export default function Plans() {
   const {
@@ -27,6 +35,45 @@ export default function Plans() {
   } = useFit();
   const [, navigate] = useLocation();
   const [selecting, setSelecting] = useState<string | null>(null);
+  const [personalPlan, setPersonalPlan] = useState<PersonalPlanState | null>(
+    null
+  );
+  const [personalLoading, setPersonalLoading] = useState(true);
+  const [personalError, setPersonalError] = useState<string | null>(null);
+  const loadPersonalPlan = useCallback(async () => {
+    setPersonalLoading(true);
+    setPersonalError(null);
+    try {
+      const result = await api<{
+        plan: TrainingPlan | null;
+        editable: boolean;
+      }>("/personal-plan");
+      setPersonalPlan(
+        result.plan
+          ? { plan: result.plan, editable: Boolean(result.editable) }
+          : null
+      );
+    } catch (error) {
+      setPersonalError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo consultar tu Plan Personal."
+      );
+    } finally {
+      setPersonalLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    void loadPersonalPlan();
+  }, [loadPersonalPlan]);
+  const publicPlans = plans.filter(p => !p.isPersonal);
+  const openPersonalPlan = () => {
+    if (personalPlan && !personalPlan.editable) {
+      void choose(personalPlan.plan.id);
+    } else {
+      navigate("/plan-personal");
+    }
+  };
   const choose = async (id: string) => {
     setSelecting(id);
     try {
@@ -58,7 +105,7 @@ export default function Plans() {
         </div>
         <span className="plans-count">
           <Layers3 size={17} />
-          {plans.length} planes disponibles
+          {publicPlans.length + (personalPlan ? 1 : 0)} planes disponibles
         </span>
       </section>
       {user && (
@@ -86,7 +133,7 @@ export default function Plans() {
         </section>
       )}
       <section className="plan-card-list" aria-label="Planes de entrenamiento">
-        {plans.map((p, index) => {
+        {publicPlans.map((p, index) => {
           const active = user && p.id === planId;
           const enrolled = enrollments.some(e => e.planId === p.id);
           const days = planDays(p, 1).length;
@@ -156,17 +203,117 @@ export default function Plans() {
             </article>
           );
         })}
+        {personalPlan && (
+          <article
+            className={`plan-choice-card ${personalPlan.plan.id === planId ? "is-current" : ""}`}
+            style={
+              { "--plan-card-color": personalPlan.plan.color } as CSSProperties
+            }
+            key={personalPlan.plan.id}
+          >
+            <div className="plan-card-visual">
+              <img
+                src={personalPlan.plan.coverImage}
+                alt="Portada compartida del Plan Personal"
+                loading="lazy"
+              />
+              <div className="plan-image-shade" />
+              <span className="plan-card-number">
+                {String(publicPlans.length + 1).padStart(2, "0")}
+              </span>
+              <span className="plan-card-image-label">
+                Tu selección. Tu ritmo.
+              </span>
+              {personalPlan.plan.id === planId && (
+                <span className="current-plan-badge">
+                  <Check size={12} /> TU PLAN ACTUAL
+                </span>
+              )}
+            </div>
+            <div className="plan-choice-copy">
+              <span className="eyebrow">
+                <LockKeyhole size={13} /> PRIVADO · SOLO VOS
+              </span>
+              <h2>
+                Plan Personal<span>.</span>
+              </h2>
+              <p>{personalPlan.plan.description}</p>
+              <div className="plan-choice-details">
+                <span>
+                  <CalendarDays size={16} />
+                  {planDays(personalPlan.plan, 1).length} días / semana
+                </span>
+                <span>
+                  <Dumbbell size={16} /> Series por ejercicio
+                </span>
+                <span>
+                  <Star size={16} />
+                  {planTotalSessions(personalPlan.plan)} sesiones de seguimiento
+                </span>
+              </div>
+              <small>
+                No se comparte con otras cuentas. Administración puede consultar
+                tu seguimiento; tus registros quedan asociados a esta rutina.
+              </small>
+              <button
+                className="button plan-choice-button"
+                disabled={
+                  loading || planLoading || !!selecting || personalLoading
+                }
+                onClick={openPersonalPlan}
+              >
+                {personalPlan.editable
+                  ? "Editar tu rutina"
+                  : "Abrir Plan Personal"}
+                <ArrowRight size={17} />
+              </button>
+            </div>
+          </article>
+        )}
       </section>
       <section className="plans-bottom-note">
         <span className="metric-icon lavender">
-          <Layers3 size={23} />
+          {personalPlan ? <LockKeyhole size={23} /> : <Layers3 size={23} />}
         </span>
         <div>
-          <h3>Una biblioteca que puede crecer.</h3>
+          <h3>
+            {personalPlan
+              ? "Tu rutina, siempre a mano."
+              : "Armá tu propio plan."}
+          </h3>
           <p>
-            Podrás sumar planes nuevos aquí. Cambiar de objetivo no borra tus
-            registros ni mezcla el cumplimiento de una rutina con otra.
+            {personalPlan
+              ? personalPlan.editable
+                ? "Podés ajustar los días y ejercicios mientras no haya progreso asociado. La rutina y su historial son privados de tu cuenta."
+                : "El historial ya iniciado protege la estructura de la rutina. Podés abrir el plan y seguir entrenando; tus registros se conservan."
+              : "Elegí ejercicios de lunes a domingo y ajustá series y repeticiones. El plan queda privado y asociado a tu cuenta."}
           </p>
+          {personalError && (
+            <p role="alert">
+              No pudimos comprobar tu rutina. {personalError}{" "}
+              <button
+                className="text-link"
+                onClick={() => void loadPersonalPlan()}
+              >
+                Reintentar
+              </button>
+            </p>
+          )}
+          <button
+            className="button primary"
+            style={{ background: "#238b83", borderColor: "#238b83" }}
+            disabled={personalLoading || planLoading || !!selecting}
+            onClick={openPersonalPlan}
+          >
+            {personalLoading
+              ? "Buscando tu plan…"
+              : personalPlan
+                ? personalPlan.editable
+                  ? "Editar Plan Personal"
+                  : "Abrir Plan Personal"
+                : "Crear Plan Personal"}
+            <ArrowRight size={16} />
+          </button>
           {user?.role === "admin" && (
             <Link href="/admin/planes" className="text-link">
               Administrar planes <ArrowRight size={14} />

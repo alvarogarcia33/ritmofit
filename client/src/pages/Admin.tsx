@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
   AlertCircle,
@@ -49,6 +49,11 @@ import {
   type PlanEnrollment,
   type TrainingPlan,
 } from "@shared/programs";
+import {
+  PERSONAL_PLAN_ADMIN_FILTER_ID,
+  PERSONAL_PLAN_ID_PREFIX,
+  personalPlanAdminFilterOption,
+} from "@shared/exercise-library";
 import { ROUTINE, type RoutineDay } from "@shared/routine";
 import "../admin.css";
 
@@ -56,7 +61,7 @@ type UserDetail = {
   user: FitUser;
   progress: Progress[];
   enrollment: PlanEnrollment | null;
-  plan: TrainingPlan;
+  plan: TrainingPlan | null;
 };
 
 type LegacyUserDetail = {
@@ -78,6 +83,11 @@ type DailyHistory = {
 };
 
 const EMPTY_FORM: ContentForm = { name: "", videoUrl: "", tips: "" };
+const PERSONAL_PLAN_FILTER_OPTION = personalPlanAdminFilterOption();
+
+function isGlobalAdminPlan(plan: TrainingPlan) {
+  return !plan.isPersonal && !plan.id.startsWith(PERSONAL_PLAN_ID_PREFIX);
+}
 
 export default function Admin() {
   const { user, loading } = useFit();
@@ -100,11 +110,13 @@ export default function Admin() {
 function AdminWorkspace() {
   const { overrides, plans, refreshContent } = useFit();
   const [activeTab, setActiveTab] = useState<"users" | "content">("users");
-  const [catalogPlans, setCatalogPlans] = useState<TrainingPlan[]>(plans);
+  const [catalogPlans, setCatalogPlans] = useState<TrainingPlan[]>(() =>
+    plans.filter(isGlobalAdminPlan)
+  );
   const [plansLoading, setPlansLoading] = useState(true);
   const [plansError, setPlansError] = useState<string | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState(
-    plans[0]?.id ?? LEGACY_PLAN_ID
+    plans.find(isGlobalAdminPlan)?.id ?? LEGACY_PLAN_ID
   );
   const [users, setUsers] = useState<FitUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
@@ -115,6 +127,7 @@ function AdminWorkspace() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailReload, setDetailReload] = useState(0);
+  const detailEpoch = useRef(0);
   const [contentLoading, setContentLoading] = useState(true);
   const [contentError, setContentError] = useState<string | null>(null);
   const [week, setWeek] = useState(1);
@@ -133,14 +146,16 @@ function AdminWorkspace() {
     setPlansError(null);
     try {
       const result = await api<{ plans: TrainingPlan[] }>("/admin/plans");
-      setCatalogPlans(result.plans);
+      const globalPlans = result.plans.filter(isGlobalAdminPlan);
+      setCatalogPlans(globalPlans);
       setSelectedPlanId(current =>
-        result.plans.some(item => item.id === current)
+        current === PERSONAL_PLAN_ADMIN_FILTER_ID ||
+        globalPlans.some(item => item.id === current)
           ? current
-          : (result.plans[0]?.id ?? LEGACY_PLAN_ID)
+          : (globalPlans[0]?.id ?? LEGACY_PLAN_ID)
       );
     } catch (error) {
-      setCatalogPlans(plans);
+      setCatalogPlans(plans.filter(isGlobalAdminPlan));
       setPlansError(
         error instanceof Error
           ? error.message
@@ -192,9 +207,11 @@ function AdminWorkspace() {
   }, [loadContent, loadPlans, loadUsers]);
 
   const loadDetail = useCallback(async () => {
+    const requestEpoch = ++detailEpoch.current;
     if (!selectedUserId || !selectedPlanId) {
       setSelectedDetail(null);
       setDetailError(null);
+      setDetailLoading(false);
       return;
     }
     setDetailLoading(true);
@@ -204,14 +221,17 @@ function AdminWorkspace() {
       const result = await api<UserDetail>(
         `/admin/users/${selectedUserId}/plan/${encodeURIComponent(selectedPlanId)}`
       );
+      if (detailEpoch.current !== requestEpoch) return;
       setSelectedDetail(result);
     } catch (error) {
+      if (detailEpoch.current !== requestEpoch) return;
       // Keep the original endpoint usable while the legacy plan is migrated.
       if (selectedPlanId === LEGACY_PLAN_ID) {
         try {
           const legacy = await api<LegacyUserDetail>(
             `/admin/users/${selectedUserId}`
           );
+          if (detailEpoch.current !== requestEpoch) return;
           const legacyPlan =
             catalogPlans.find(item => item.id === LEGACY_PLAN_ID) ?? plans[0];
           if (legacyPlan) {
@@ -231,18 +251,22 @@ function AdminWorkspace() {
           // Use the original error below for a single, useful message.
         }
       }
+      if (detailEpoch.current !== requestEpoch) return;
       setDetailError(
         error instanceof Error
           ? error.message
           : "No se pudo cargar el detalle del usuario para este plan."
       );
     } finally {
-      setDetailLoading(false);
+      if (detailEpoch.current === requestEpoch) setDetailLoading(false);
     }
   }, [catalogPlans, plans, selectedPlanId, selectedUserId]);
 
   useEffect(() => {
     void loadDetail();
+    return () => {
+      ++detailEpoch.current;
+    };
   }, [detailReload, loadDetail]);
 
   const filteredUsers = useMemo(() => {
@@ -336,7 +360,9 @@ function AdminWorkspace() {
   const selectedPlan =
     selectedDetail?.plan ??
     catalogPlans.find(item => item.id === selectedPlanId) ??
-    null;
+    (selectedPlanId === PERSONAL_PLAN_ADMIN_FILTER_ID
+      ? PERSONAL_PLAN_FILTER_OPTION
+      : null);
 
   return (
     <div className="admin-page">
@@ -489,15 +515,21 @@ function AdminWorkspace() {
                   <span>Plan para gráficos</span>
                   <select
                     value={selectedPlanId}
-                    disabled={plansLoading || catalogPlans.length === 0}
+                    disabled={plansLoading}
                     onChange={event => setSelectedPlanId(event.target.value)}
                   >
-                    {catalogPlans.map(item => (
-                      <option key={item.id} value={item.id}>
-                        {item.title}
-                        {item.published ? "" : " · Borrador"}
-                      </option>
-                    ))}
+                    {[...catalogPlans, PERSONAL_PLAN_FILTER_OPTION].map(
+                      item => (
+                        <option key={item.id} value={item.id}>
+                          {item.title}
+                          {item.id === PERSONAL_PLAN_ADMIN_FILTER_ID
+                            ? ""
+                            : item.published
+                              ? ""
+                              : " · Borrador"}
+                        </option>
+                      )
+                    )}
                   </select>
                 </label>
               </div>
@@ -842,6 +874,13 @@ function UserDetailPanel({
   const plan = detail?.plan ?? null;
   const enrollment = detail?.enrollment ?? null;
   const progress = detail?.progress ?? [];
+  const planLabel =
+    plan?.title ??
+    (selectedPlanId === PERSONAL_PLAN_ADMIN_FILTER_ID
+      ? "Plan Personal"
+      : "el plan seleccionado");
+  const personalPlanUnavailable =
+    selectedPlanId === PERSONAL_PLAN_ADMIN_FILTER_ID && !plan;
   const hasPlanData = Boolean(plan && enrollment);
   const weeklyData =
     hasPlanData && plan
@@ -931,11 +970,15 @@ function UserDetailPanel({
             <span>
               <Mail size={14} /> {selectedUser.email}
             </span>
-            <span>Plan filtrado: {plan?.title ?? selectedPlanId}</span>
+            <span>Plan filtrado: {planLabel}</span>
             {enrollment ? (
               <span>Inscripción: {formatDate(enrollment.startDate)}</span>
             ) : (
-              <span>Sin inscripción en este plan</span>
+              <span>
+                {personalPlanUnavailable
+                  ? "Sin Plan Personal disponible"
+                  : "Sin inscripción en este plan"}
+              </span>
             )}
           </div>
           {enrollment && (
@@ -974,10 +1017,15 @@ function UserDetailPanel({
             <div className="empty-state">
               <BookOpen size={23} />
               <strong>
-                Este usuario no tiene inscripción en{" "}
-                {plan?.title ?? "este plan"}.
+                {personalPlanUnavailable
+                  ? "Esta cuenta todavía no ha creado un Plan Personal."
+                  : `Este usuario no tiene inscripción en ${planLabel}.`}
               </strong>
-              <span>El filtro no mezcla su historial de otros planes.</span>
+              <span>
+                {personalPlanUnavailable
+                  ? "No hay una rutina privada ni progreso de ese plan para mostrar."
+                  : "El filtro no mezcla su historial de otros planes."}
+              </span>
             </div>
           ) : (
             <>

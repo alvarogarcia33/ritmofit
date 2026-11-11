@@ -21,6 +21,7 @@ import {
   type PlanEnrollment,
   type TrainingPlan,
 } from "@shared/programs";
+import type { PersonalPlanDraft } from "@shared/exercise-library";
 
 interface FitContextValue {
   user: FitUser | null;
@@ -45,6 +46,10 @@ interface FitContextValue {
   updatePlanPreferences: (
     preferences: Partial<Omit<PlanEnrollment, "planId">>
   ) => Promise<void>;
+  savePersonalPlan: (
+    draft: PersonalPlanDraft,
+    update: boolean
+  ) => Promise<void>;
   authenticate: (path: "/login" | "/register", body: unknown) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (body: unknown) => Promise<void>;
@@ -68,6 +73,7 @@ export function FitProvider({ children }: { children: ReactNode }) {
   const [progressReady, setProgressReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const epoch = useRef(0);
+  const personalPlanSaving = useRef(false);
   const active = useRef(planId);
   const plan = plans.find(p => p.id === planId) ?? plans[0] ?? DEFAULT_PLANS[0];
   const enrollment = enrollments.find(e => e.planId === planId) ?? null;
@@ -79,12 +85,14 @@ export function FitProvider({ children }: { children: ReactNode }) {
       }
     : null;
   const refreshContent = useCallback(async () => {
+    const requestEpoch = epoch.current;
     const r = await api<{ overrides: ContentOverride[] }>("/content");
-    setOverrides(r.overrides);
+    if (epoch.current === requestEpoch) setOverrides(r.overrides);
   }, []);
   const refreshPlans = useCallback(async () => {
+    const requestEpoch = epoch.current;
     const r = await api<{ plans: TrainingPlan[] }>("/plans");
-    setPlans(r.plans);
+    if (epoch.current === requestEpoch) setPlans(r.plans);
   }, []);
   const loadForAccount = useCallback(
     async (account: FitUser | null, targetEpoch: number) => {
@@ -180,6 +188,7 @@ export function FitProvider({ children }: { children: ReactNode }) {
         method: "POST",
         body,
       });
+      if (epoch.current !== n) return;
       saveToken(r.token);
       setProgress([]);
       setEnrollments([]);
@@ -269,6 +278,73 @@ export function FitProvider({ children }: { children: ReactNode }) {
   const updatePlanPreferences = (
     preferences: Partial<Omit<PlanEnrollment, "planId">>
   ) => selectPlan(planId, preferences);
+  const savePersonalPlan = async (
+    draft: PersonalPlanDraft,
+    update: boolean
+  ) => {
+    if (!user) throw new Error("Inicia sesión para guardar tu Plan Personal.");
+    if (personalPlanSaving.current)
+      throw new Error("Ya se está guardando tu Plan Personal.");
+
+    personalPlanSaving.current = true;
+    const accountId = user.id;
+    const n = ++epoch.current;
+    let saveConfirmed = false;
+    setError(null);
+    try {
+      await api<{ plan: TrainingPlan; activePlanId: string }>(
+        "/personal-plan",
+        { method: update ? "PUT" : "POST", body: draft }
+      );
+      saveConfirmed = true;
+
+      // Keep the protected route mounted until the write succeeds so its form
+      // can show server validation and conflict errors in place.
+      if (epoch.current !== n || user.id !== accountId)
+        throw new Error(
+          "El guardado se interrumpió porque cambió la sesión o el plan activo."
+        );
+
+      setPlanLoading(true);
+      setProgressReady(false);
+      const [catalog, state] = await Promise.all([
+        api<{ plans: TrainingPlan[] }>("/plans"),
+        api<{ activePlanId: string; enrollments: PlanEnrollment[] }>(
+          "/plan-state"
+        ),
+      ]);
+      const nextProgress = await api<{ progress: Progress[] }>(
+        `/plans/${encodeURIComponent(state.activePlanId)}/progress`
+      );
+      if (epoch.current !== n || user.id !== accountId)
+        throw new Error(
+          "La sesión cambió mientras se actualizaban tus planes. Volvé a cargar la biblioteca."
+        );
+
+      active.current = state.activePlanId;
+      setPlans(catalog.plans);
+      setPlanId(state.activePlanId);
+      setEnrollments(state.enrollments);
+      setProgress(nextProgress.progress);
+      setProgressReady(true);
+      setError(null);
+    } catch (e) {
+      if (epoch.current === n) {
+        setError(
+          e instanceof Error
+            ? e.message
+            : "No se pudo guardar tu Plan Personal."
+        );
+        // Once persistence succeeds, old catalog/progress can no longer be
+        // trusted. Keep the session recovery guard until refresh completes.
+        if (saveConfirmed) setProgressReady(false);
+      }
+      throw e;
+    } finally {
+      personalPlanSaving.current = false;
+      if (epoch.current === n && saveConfirmed) setPlanLoading(false);
+    }
+  };
   const writeProgress = async (
     key: string,
     body: Pick<Progress, "completedSets" | "cardioDone" | "warmupDone">
@@ -307,6 +383,7 @@ export function FitProvider({ children }: { children: ReactNode }) {
         refreshPlans,
         selectPlan,
         updatePlanPreferences,
+        savePersonalPlan,
         authenticate,
         logout,
         updateProfile,

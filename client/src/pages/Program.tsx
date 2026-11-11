@@ -67,6 +67,11 @@ export default function Program() {
             Consultar material original ↗
           </a>
         )}
+        {plan.isPersonal && (
+          <Link href="/plan-personal" className="button secondary">
+            Revisar mi selección <ArrowRight size={16} />
+          </Link>
+        )}
       </section>
       <section className="program-overview">
         <div>
@@ -164,9 +169,9 @@ export default function Program() {
           <div>
             <h3>Las cantidades están en cada ejercicio.</h3>
             <p>
-              Se conserva el orden y la dosificación de tus referencias. No se
-              añaden niveles ni cardio obligatorio. Consulta la lámina del día
-              para revisar la técnica.
+              {plan.isPersonal
+                ? "Se conserva el orden, los días y las cantidades que elegiste. No se añaden niveles ni cardio obligatorio. Estos ejercicios no tienen una demostración vinculada: revisá la técnica con tu profesional."
+                : "Se conserva el orden y la dosificación de tus referencias. No se añaden niveles ni cardio obligatorio. Consulta la lámina del día para revisar la técnica."}
             </p>
           </div>
         </section>
@@ -279,7 +284,9 @@ export default function Program() {
                           {exercises.length} ejercicios · {sets} series ·{" "}
                           {plan.mode === "supersets"
                             ? `${planConfig(plan, effectiveLevel).rounds} rondas`
-                            : "cantidades de la lámina"}
+                            : plan.isPersonal
+                              ? "cantidades elegidas por vos"
+                              : "cantidades de la lámina"}
                         </span>
                       </div>
                       <span

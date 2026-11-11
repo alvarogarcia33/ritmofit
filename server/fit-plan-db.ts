@@ -1,12 +1,14 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
+import { isDeepStrictEqual } from "node:util";
 import { getFitPool } from "./fit-db";
 import type { FitLevel } from "./fit-db";
 import type { TrainingPlan } from "../shared/programs";
 
-export const FIT_PLAN_SCHEMA_VERSION = 1;
+export const FIT_PLAN_SCHEMA_VERSION = 2;
 
 export interface FitPlanRow extends RowDataPacket {
   id: string;
+  owner_user_id: number | null;
   payload: string | TrainingPlan;
   created_at: string | Date;
   updated_at: string | Date;
@@ -101,10 +103,12 @@ const TABLE_DEFINITIONS: Array<{
     create: `
       CREATE TABLE IF NOT EXISTS fit_plans (
         id VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+        owner_user_id BIGINT UNSIGNED NULL,
         payload JSON NOT NULL,
         created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
         updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-        PRIMARY KEY (id)
+        PRIMARY KEY (id),
+        UNIQUE KEY fit_plans_owner_user_uq (owner_user_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `,
     columns: [
@@ -113,6 +117,7 @@ const TABLE_DEFINITIONS: Array<{
         definition:
           "VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
       },
+      { name: "owner_user_id", definition: "BIGINT UNSIGNED NULL" },
       { name: "payload", definition: "JSON NULL" },
       {
         name: "created_at",
@@ -264,10 +269,30 @@ export async function initializeFitPlanDatabase(): Promise<void> {
       await pool.execute(table.create);
       for (const column of table.columns) {
         if (!(await columnExists(table.name, column.name))) {
-          await pool.execute(
-            `ALTER TABLE \`${table.name}\` ADD COLUMN \`${column.name}\` ${column.definition}`
-          );
+          try {
+            await pool.execute(
+              `ALTER TABLE \`${table.name}\` ADD COLUMN \`${column.name}\` ${column.definition}`
+            );
+          } catch (error) {
+            // Another new instance can complete the same additive DDL first.
+            if (mysqlErrorCode(error) !== "ER_DUP_FIELDNAME") throw error;
+          }
         }
+      }
+    }
+
+    const [ownerIndexes] = await pool.execute<RowDataPacket[]>(
+      `SELECT 1 AS present FROM information_schema.STATISTICS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ? LIMIT 1`,
+      ["fit_plans", "fit_plans_owner_user_uq"]
+    );
+    if (!ownerIndexes.length) {
+      try {
+        await pool.execute(
+          "CREATE UNIQUE INDEX fit_plans_owner_user_uq ON fit_plans (owner_user_id)"
+        );
+      } catch (error) {
+        if (mysqlErrorCode(error) !== "ER_DUP_KEYNAME") throw error;
       }
     }
 
@@ -291,13 +316,15 @@ export async function initializeFitPlanDatabase(): Promise<void> {
 
 export async function listFitPlans(): Promise<FitPlanRow[]> {
   return selectRows<FitPlanRow>(
-    `SELECT id, payload, created_at, updated_at FROM fit_plans ORDER BY created_at ASC, id ASC`
+    `SELECT id, owner_user_id, payload, created_at, updated_at
+     FROM fit_plans WHERE owner_user_id IS NULL ORDER BY created_at ASC, id ASC`
   );
 }
 
 export async function findFitPlan(id: string): Promise<FitPlanRow | null> {
   const rows = await selectRows<FitPlanRow>(
-    `SELECT id, payload, created_at, updated_at FROM fit_plans WHERE id = ? LIMIT 1`,
+    `SELECT id, owner_user_id, payload, created_at, updated_at
+     FROM fit_plans WHERE id = ? AND owner_user_id IS NULL LIMIT 1`,
     [id]
   );
   return rows[0] ?? null;
@@ -308,7 +335,7 @@ export async function insertFitPlan(
   plan: TrainingPlan
 ): Promise<FitPlanRow | null> {
   await execute(
-    `INSERT INTO fit_plans (id, payload) VALUES (?, CAST(? AS JSON))`,
+    `INSERT INTO fit_plans (id, owner_user_id, payload) VALUES (?, NULL, CAST(? AS JSON))`,
     [id, JSON.stringify(plan)]
   );
   return findFitPlan(id);
@@ -322,11 +349,156 @@ export async function updateFitPlan(
     `
       UPDATE fit_plans
       SET payload = CAST(? AS JSON), updated_at = CURRENT_TIMESTAMP(3)
-      WHERE id = ?
+      WHERE id = ? AND owner_user_id IS NULL
     `,
     [JSON.stringify(plan), id]
   );
   return findFitPlan(id);
+}
+
+export async function findFitUserPlan(
+  userId: number,
+  planId: string
+): Promise<FitPlanRow | null> {
+  const rows = await selectRows<FitPlanRow>(
+    `SELECT id, owner_user_id, payload, created_at, updated_at
+     FROM fit_plans WHERE id = ? AND owner_user_id = ? LIMIT 1`,
+    [planId, userId]
+  );
+  return rows[0] ?? null;
+}
+
+export async function findFitPersonalPlan(
+  userId: number
+): Promise<FitPlanRow | null> {
+  const rows = await selectRows<FitPlanRow>(
+    `SELECT id, owner_user_id, payload, created_at, updated_at
+     FROM fit_plans WHERE owner_user_id = ? LIMIT 1`,
+    [userId]
+  );
+  return rows[0] ?? null;
+}
+
+export async function saveFitPersonalPlan(input: {
+  userId: number;
+  plan: TrainingPlan;
+  startDate: string;
+  level: FitLevel;
+  restSeconds: number;
+}): Promise<FitPlanRow> {
+  const connection = await planPool().getConnection();
+  let inTransaction = false;
+  try {
+    await connection.beginTransaction();
+    inTransaction = true;
+    const [users] = await connection.execute<RowDataPacket[]>(
+      "SELECT id FROM fit_users WHERE id = ? FOR UPDATE",
+      [input.userId]
+    );
+    if (!users[0]) throw new Error("Fit user not found");
+    const [ownedPlans] = await connection.execute<RowDataPacket[]>(
+      "SELECT id FROM fit_plans WHERE owner_user_id = ? FOR UPDATE",
+      [input.userId]
+    );
+    if (ownedPlans[0]) throw new FitPersonalPlanExistsError();
+    const [idCollision] = await connection.execute<RowDataPacket[]>(
+      "SELECT id FROM fit_plans WHERE id = ? FOR UPDATE",
+      [input.plan.id]
+    );
+    if (idCollision[0]) throw new Error("Fit plan id collision");
+    await connection.execute(
+      "INSERT INTO fit_plans (id, owner_user_id, payload) VALUES (?, ?, CAST(? AS JSON))",
+      [input.plan.id, input.userId, JSON.stringify(input.plan)]
+    );
+    await connection.execute(
+      `INSERT INTO fit_plan_enrollments
+       (user_id, plan_id, start_date, level, rest_seconds, updated_at)
+       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP(3))`,
+      [
+        input.userId,
+        input.plan.id,
+        input.startDate,
+        input.level,
+        input.restSeconds,
+      ]
+    );
+    await connection.execute(
+      `INSERT INTO fit_active_plans (user_id, plan_id, updated_at)
+       VALUES (?, ?, CURRENT_TIMESTAMP(3))
+       ON DUPLICATE KEY UPDATE plan_id = VALUES(plan_id), updated_at = CURRENT_TIMESTAMP(3)`,
+      [input.userId, input.plan.id]
+    );
+    await connection.commit();
+    inTransaction = false;
+    const now = new Date();
+    return {
+      id: input.plan.id,
+      owner_user_id: input.userId,
+      payload: input.plan,
+      created_at: now,
+      updated_at: now,
+    } as FitPlanRow;
+  } catch (error) {
+    if (inTransaction) await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+export class FitPersonalPlanExistsError extends Error {
+  constructor() {
+    super("Personal plan already exists for this user");
+    this.name = "FitPersonalPlanExistsError";
+  }
+}
+
+export class FitPersonalPlanLockedError extends Error {
+  constructor() {
+    super("Personal plan has progress or changed concurrently");
+    this.name = "FitPersonalPlanLockedError";
+  }
+}
+
+/** Serializes edits with progress writes on the owned plan row. No history is deleted. */
+export async function updateFitPersonalPlan(
+  userId: number,
+  plan: TrainingPlan
+): Promise<void> {
+  const connection = await planPool().getConnection();
+  let inTransaction = false;
+  try {
+    await connection.beginTransaction();
+    inTransaction = true;
+    const [owned] = await connection.execute<RowDataPacket[]>(
+      "SELECT id FROM fit_plans WHERE id = ? AND owner_user_id = ? FOR UPDATE",
+      [plan.id, userId]
+    );
+    if (!owned[0]) throw new FitPersonalPlanLockedError();
+    const [history] = await connection.execute<RowDataPacket[]>(
+      "SELECT 1 FROM fit_plan_progress WHERE user_id = ? AND plan_id = ? LIMIT 1 FOR UPDATE",
+      [userId, plan.id]
+    );
+    if (history.length) throw new FitPersonalPlanLockedError();
+    await connection.execute(
+      "UPDATE fit_plans SET payload = CAST(? AS JSON), updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? AND owner_user_id = ?",
+      [JSON.stringify(plan), plan.id, userId]
+    );
+    // Keep enrollment ID, start date, level and configured rest timer intact.
+    await connection.execute(
+      `INSERT INTO fit_active_plans (user_id, plan_id, updated_at)
+       VALUES (?, ?, CURRENT_TIMESTAMP(3))
+       ON DUPLICATE KEY UPDATE plan_id = VALUES(plan_id), updated_at = CURRENT_TIMESTAMP(3)`,
+      [userId, plan.id]
+    );
+    await connection.commit();
+    inTransaction = false;
+  } catch (error) {
+    if (inTransaction) await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 export async function migrateFitPlanDayMediaOnce(
@@ -474,12 +646,13 @@ export async function seedDefaultFitPlans(
 }
 
 function isDuplicateError(error: unknown): boolean {
-  return Boolean(
-    error &&
-      typeof error === "object" &&
-      "code" in error &&
-      (error as { code?: unknown }).code === "ER_DUP_ENTRY"
-  );
+  return mysqlErrorCode(error) === "ER_DUP_ENTRY";
+}
+
+function mysqlErrorCode(error: unknown): unknown {
+  return error && typeof error === "object" && "code" in error
+    ? (error as { code?: unknown }).code
+    : undefined;
 }
 
 function enrollmentColumns(): string {
@@ -623,9 +796,27 @@ export async function saveFitPlanProgress(input: {
   cardioDone: boolean;
   warmupDone: boolean;
   completedAt: Date | null;
+  expectedPersonalPlan?: TrainingPlan;
 }): Promise<FitPlanProgressRow | null> {
-  await execute(
-    `
+  const connection = input.expectedPersonalPlan
+    ? await planPool().getConnection()
+    : null;
+  let inTransaction = false;
+  try {
+    if (connection) {
+      await connection.beginTransaction();
+      inTransaction = true;
+      const [owned] = await connection.execute<RowDataPacket[]>(
+        "SELECT payload FROM fit_plans WHERE id = ? AND owner_user_id = ? FOR UPDATE",
+        [input.planId, input.userId]
+      );
+      const payload = owned[0]?.payload;
+      const stored =
+        typeof payload === "string" ? JSON.parse(payload) : payload;
+      if (!isDeepStrictEqual(stored, input.expectedPersonalPlan))
+        throw new FitPersonalPlanLockedError();
+    }
+    const sql = `
       INSERT INTO fit_plan_progress
         (
           user_id, plan_id, day_key, session_level, required_sets,
@@ -644,8 +835,8 @@ export async function saveFitPlanProgress(input: {
           COALESCE(completed_at, VALUES(completed_at))
         ),
         updated_at = CURRENT_TIMESTAMP(3)
-    `,
-    [
+    `;
+    const params = [
       input.userId,
       input.planId,
       input.dayKey,
@@ -655,8 +846,20 @@ export async function saveFitPlanProgress(input: {
       input.cardioDone ? 1 : 0,
       input.warmupDone ? 1 : 0,
       input.completedAt,
-    ]
-  );
+    ];
+    if (connection) {
+      await connection.execute(sql, params);
+      await connection.commit();
+      inTransaction = false;
+    } else {
+      await execute(sql, params);
+    }
+  } catch (error) {
+    if (connection && inTransaction) await connection.rollback();
+    throw error;
+  } finally {
+    connection?.release();
+  }
   return findFitPlanProgress(input.userId, input.planId, input.dayKey);
 }
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  Dumbbell,
   ExternalLink,
   Pause,
   Play,
@@ -176,12 +177,15 @@ export function VideoModal({
   }, [exercise, onClose]);
   if (!exercise) return null;
   const alternative = exercise.videoAlternative;
+  const sourceImage = exercise.sourceImage?.trim() ?? "";
+  const videoUrl = exercise.videoUrl?.trim() ?? "";
   const embed = alternative
     ? alternative.embedUrl
       ? getVideoEmbedUrl(alternative.embedUrl)
       : null
-    : getVideoEmbedUrl(exercise.videoUrl);
-  const fallbackUrl = alternative?.watchUrl ?? exercise.videoUrl;
+    : getVideoEmbedUrl(videoUrl);
+  const fallbackUrl = alternative?.watchUrl?.trim() || videoUrl;
+  const hasMedia = Boolean(sourceImage || embed || fallbackUrl);
   return (
     <div className="modal-overlay" onClick={onClose}>
       <section
@@ -194,11 +198,13 @@ export function VideoModal({
         <div className="modal-header">
           <div>
             <span className="eyebrow">
-              {exercise.sourceImage
+              {sourceImage
                 ? "REFERENCIA DE TU LÁMINA"
                 : alternative
                   ? "DEMOSTRACIÓN ALTERNATIVA"
-                  : "DEMOSTRACIÓN ORIGINAL"}
+                  : videoUrl
+                    ? "DEMOSTRACIÓN ORIGINAL"
+                    : "SIN DEMOSTRACIÓN"}
             </span>
             <h2 id="video-title">{exercise.name}</h2>
           </div>
@@ -213,14 +219,12 @@ export function VideoModal({
         </div>
         <div
           className={
-            exercise.sourceImage && !embed
-              ? "exercise-reference-frame"
-              : "video-frame"
+            sourceImage && !embed ? "exercise-reference-frame" : "video-frame"
           }
         >
-          {exercise.sourceImage && !embed ? (
+          {sourceImage && !embed ? (
             <img
-              src={exercise.sourceImage}
+              src={sourceImage}
               alt={`Lámina original para consultar ${exercise.name}`}
             />
           ) : embed?.startsWith("https://www.youtube-nocookie.com/") ? (
@@ -237,7 +241,7 @@ export function VideoModal({
               allowFullScreen
               referrerPolicy="strict-origin-when-cross-origin"
             />
-          ) : (
+          ) : fallbackUrl ? (
             <div className="video-unavailable">
               <p>
                 {alternative && !alternative.embedUrl
@@ -248,13 +252,22 @@ export function VideoModal({
                 Abrir video en otra pestaña <ExternalLink size={15} />
               </a>
             </div>
+          ) : (
+            <div className="video-empty-state" role="status">
+              <Dumbbell size={34} strokeWidth={1.6} aria-hidden="true" />
+              <p>No hay una demostración vinculada para este ejercicio.</p>
+            </div>
           )}
         </div>
         <div className="video-information">
-          <h3>Hazlo con intención</h3>
+          <h3>
+            {hasMedia ? "Hazlo con intención" : "Sin demostración vinculada"}
+          </h3>
           <p>
             {exercise.tips ||
-              "Revisa la demostración completa antes de empezar. Mantén el control del movimiento y detente si sientes dolor."}
+              (hasMedia
+                ? "Revisa la demostración completa antes de empezar. Mantén el control del movimiento y detente si sientes dolor."
+                : "No hay video ni lámina asociados. Sigue las indicaciones disponibles y detente si sientes dolor.")}
           </p>
           {alternative && (
             <p className="video-attribution">
@@ -263,9 +276,9 @@ export function VideoModal({
             </p>
           )}
           <div className="video-links">
-            {exercise.sourceImage && (
+            {sourceImage && (
               <a
-                href={exercise.sourceImage}
+                href={sourceImage}
                 target="_blank"
                 rel="noreferrer"
                 className="text-link"
@@ -274,7 +287,7 @@ export function VideoModal({
                 <ExternalLink size={15} />
               </a>
             )}
-            {alternative && (
+            {alternative?.watchUrl?.trim() && (
               <a
                 href={alternative.watchUrl}
                 target="_blank"
@@ -285,17 +298,17 @@ export function VideoModal({
                 <ExternalLink size={15} />
               </a>
             )}
-            {exercise.videoUrl && (
+            {videoUrl && (
               <a
-                href={exercise.videoUrl}
+                href={videoUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="text-link original-video-link"
               >
-                {exercise.videoUrl.includes("vimeo.com")
+                {videoUrl.includes("vimeo.com")
                   ? "Abrir video original en Vimeo"
-                  : exercise.videoUrl.includes("youtube.com") ||
-                      exercise.videoUrl.includes("youtu.be")
+                  : videoUrl.includes("youtube.com") ||
+                      videoUrl.includes("youtu.be")
                     ? "Abrir video en YouTube"
                     : "Abrir demostración externa"}{" "}
                 <ExternalLink size={15} />
@@ -303,15 +316,17 @@ export function VideoModal({
             )}
           </div>
           <small>
-            {exercise.sourceImage && !embed
-              ? "Las ilustraciones se conservan del material que compartiste. "
-              : embed?.startsWith("https://www.youtube-nocookie.com/")
-                ? "Se utiliza el reproductor oficial de YouTube; si no funciona aquí, abre el mismo video con el enlace externo. "
-                : alternative && !alternative.embedUrl
-                  ? "El video se abre en YouTube porque no admite inserción; el Vimeo original se conserva como referencia. "
-                  : alternative
-                    ? "La alternativa usa el reproductor oficial del proveedor; el enlace Vimeo original se conserva como referencia. "
-                    : "Vimeo puede restringir la reproducción integrada según los permisos del propietario. "}
+            {!hasMedia
+              ? "Este ejercicio no tiene video ni lámina vinculados. Revisa las indicaciones de técnica. "
+              : sourceImage && !embed
+                ? "Las ilustraciones se conservan del material que compartiste. "
+                : embed?.startsWith("https://www.youtube-nocookie.com/")
+                  ? "Se utiliza el reproductor oficial de YouTube; si no funciona aquí, abre el mismo video con el enlace externo. "
+                  : alternative && !alternative.embedUrl
+                    ? "El video se abre en YouTube porque no admite inserción; el Vimeo original se conserva como referencia. "
+                    : alternative
+                      ? "La alternativa usa el reproductor oficial del proveedor; el enlace Vimeo original se conserva como referencia. "
+                      : "Vimeo puede restringir la reproducción integrada según los permisos del propietario. "}
             Ante dolor, mareo o molestias, detén la sesión.
           </small>
         </div>

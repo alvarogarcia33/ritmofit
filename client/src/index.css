@@ -3734,3 +3734,133 @@ input:disabled {
     transition: none;
   }
 }
+
+.exercise-thumbnail-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--pink);
+  background: color-mix(in srgb, var(--pink) 7%, white);
+}
+.exercise-thumbnail-empty {
+  display: grid;
+  place-items: center;
+  cursor: default;
+  color: var(--pink);
+  background: color-mix(in srgb, var(--pink) 7%, white);
+  border: 1px solid color-mix(in srgb, var(--pink) 20%, white);
+}
+.exercise-no-demo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  margin-top: 7px;
+  color: var(--pink);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+.video-empty-state {
+  display: flex;
+  min-height: 220px;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  padding: 24px;
+  color: #e9e5ea;
+  text-align: center;
+}
+.video-empty-state svg {
+  color: var(--pink);
+}
+.video-empty-state p {
+  max-width: 32rem;
+  color: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.app-shell[data-plan^="personal-"] .workout-hero {
+  background: var(--pink);
+}
+.app-shell[data-plan^="personal-"] .day-chip.active {
+  background: var(--pink);
+  border-color: var(--pink);
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--pink) 22%, transparent);
+}
+.app-shell[data-plan^="personal-"] .day-chip.done:not(.active) {
+  background: var(--blush);
+  border-color: color-mix(in srgb, var(--pink) 24%, white);
+}
+.app-shell[data-plan^="personal-"] .superset {
+  border-color: color-mix(in srgb, var(--pink) 22%, white);
+}
+.app-shell[data-plan^="personal-"] .superset-heading {
+  background: var(--blush);
+  color: var(--ink);
+}
+.app-shell[data-plan^="personal-"] .block-number {
+  color: var(--pink);
+  border-color: color-mix(in srgb, var(--pink) 24%, white);
+}
+.app-shell[data-plan^="personal-"] .superset-tag {
+  color: var(--pink);
+  border-color: color-mix(in srgb, var(--pink) 26%, white);
+}
+.app-shell[data-plan^="personal-"] .exercise-row.completed {
+  background: var(--blush);
+}
+.app-shell[data-plan^="personal-"] .warmup-icon {
+  color: var(--pink);
+  background: var(--blush);
+}
+.app-shell[data-plan^="personal-"] .guide-box {
+  background: var(--blush);
+  border-color: color-mix(in srgb, var(--pink) 22%, white);
+}
+.app-shell[data-plan^="personal-"] .small-check.checked,
+.app-shell[data-plan^="personal-"] .set-button.checked,
+.app-shell[data-plan^="personal-"] .session-track i {
+  background: var(--pink);
+  border-color: var(--pink);
+}
+.app-shell[data-plan^="personal-"] .set-button:hover {
+  border-color: var(--pink);
+  color: var(--pink);
+  background: var(--blush);
+}
+.app-shell[data-plan^="personal-"] .exercise-done-button.checked,
+.app-shell[data-plan^="personal-"] .session-progress-card strong,
+.app-shell[data-plan^="personal-"] .timer-tabs button.selected,
+.app-shell[data-plan^="personal-"] .timer-value.ticking,
+.app-shell[data-plan^="personal-"] .timer-complete {
+  color: var(--pink);
+}
+.app-shell[data-plan^="personal-"] .superset-footer {
+  background: var(--blush);
+  border-color: color-mix(in srgb, var(--pink) 15%, white);
+  color: color-mix(in srgb, var(--pink) 62%, #766c78);
+}
+.app-shell[data-plan^="personal-"] .timer-tabs {
+  background: var(--blush);
+}
+.app-shell[data-plan^="personal-"] .timer-value > span {
+  color: color-mix(in srgb, var(--pink) 50%, white);
+}
+.app-shell[data-plan^="personal-"] .video-empty-state svg {
+  color: var(--pink);
+}
+
+@media (max-width: 600px) {
+  .exercise-no-demo {
+    font-size: 9px;
+  }
+  .video-empty-state {
+    min-height: 190px;
+    padding: 20px 14px;
+  }
+}

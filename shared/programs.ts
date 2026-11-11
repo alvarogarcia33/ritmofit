@@ -20,6 +20,8 @@ export type TrainingPlan = {
   restSeconds: number;
   published: boolean;
   sourceLabel: string;
+  /** Present only when returned to the owning account; never accepted from clients. */
+  isPersonal?: boolean;
   sourceUrl?: string;
   notes: string[];
   routine: { first: RoutineDay[]; second: RoutineDay[] };
