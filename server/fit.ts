@@ -674,6 +674,13 @@ export async function registerFitRoutes(app: Express): Promise<void> {
       2,
       replacePlanExerciseMediaFromDefault
     );
+    await migrateFitPlanDayMediaOnce(
+      "tonificar-wednesday-videos-2026-11-11",
+      tonificar.id,
+      tonificar,
+      3,
+      replacePlanExerciseMediaFromDefault
+    );
     await migrateFitPlanCoverOnce(
       "tonificar-cover-art-vwmfze-2026-11-10",
       tonificar.id,

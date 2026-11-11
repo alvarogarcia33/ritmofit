@@ -238,28 +238,52 @@ const TONE_DAYS: RoutineDay[] = [
         1,
         "Prensa de piernas",
         "10 repeticiones",
-        "La lámina indica subir el peso en cada serie; usa una carga que puedas controlar."
+        "La lámina indica subir el peso en cada serie; usa una carga que puedas controlar.",
+        {
+          video: toneVideo(
+            "WAjen1w8kWM",
+            "https://www.youtube.com/shorts/WAjen1w8kWM"
+          ),
+        }
       ),
       toneExercise(
         3,
         2,
         "Sentadillas libres",
         "10 repeticiones",
-        "La lámina indica subir el peso en cada serie. No sacrifiques el control de la postura."
+        "La lámina indica subir el peso en cada serie. No sacrifiques el control de la postura.",
+        {
+          video: toneVideo(
+            "4Gzv-EjUclo",
+            "https://www.youtube.com/shorts/4Gzv-EjUclo"
+          ),
+        }
       ),
       toneExercise(
         3,
         3,
         "Zancadas",
         "10 repeticiones por pierna",
-        "En la lámina figura «Sancadas». Con un peso sostenible. Completa ambas piernas antes de marcar la serie."
+        "En la lámina figura «Sancadas». Con un peso sostenible. Completa ambas piernas antes de marcar la serie.",
+        {
+          video: toneVideo(
+            "OOoMo14FPmM",
+            "https://www.youtube.com/shorts/OOoMo14FPmM"
+          ),
+        }
       ),
       toneExercise(
         3,
         4,
         "Sillón de cuádriceps",
         "10 repeticiones + 1 repetición al fallo",
-        "Se transcribe la indicación de la lámina. El trabajo al fallo requiere supervisión y no debe continuar ante dolor ni pérdida de técnica."
+        "Se transcribe la indicación de la lámina. El trabajo al fallo requiere supervisión y no debe continuar ante dolor ni pérdida de técnica.",
+        {
+          video: toneVideo(
+            "S50jrJDzO4M",
+            "https://www.youtube.com/shorts/S50jrJDzO4M"
+          ),
+        }
       ),
       toneExercise(
         3,
@@ -267,14 +291,26 @@ const TONE_DAYS: RoutineDay[] = [
         "Plancha frontal",
         "45 segundos",
         "Tres series de 45 segundos, como indica la lámina. Mantén una posición que puedas controlar.",
-        { seconds: 45 }
+        {
+          seconds: 45,
+          video: toneVideo(
+            "_Plb5jSSlX4",
+            "https://www.youtube.com/shorts/_Plb5jSSlX4"
+          ),
+        }
       ),
       toneExercise(
         3,
         6,
         "Elevación de pantorrillas",
         "15 repeticiones",
-        "Con un peso sostenible, según la lámina."
+        "Con un peso sostenible, según la lámina.",
+        {
+          video: toneVideo(
+            "H3Iii8hPzlc",
+            "https://www.youtube.com/shorts/H3Iii8hPzlc"
+          ),
+        }
       ),
     ],
   },
