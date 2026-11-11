@@ -19,7 +19,6 @@ import {
   LockKeyhole,
   Plus,
   Search,
-  ShieldCheck,
   Trash2,
   X,
 } from "lucide-react";
@@ -56,13 +55,15 @@ const EXERCISES_BY_ID = new Map(
 type PersonalPlanResponse = {
   plan: TrainingPlan | null;
   editable: boolean;
+  hasProgress: boolean;
+  version: number;
 };
 
 export default function PersonalPlanBuilder() {
   const { savePersonalPlan, selectPlan } = useFit();
   const [, navigate] = useLocation();
   const [plan, setPlan] = useState<TrainingPlan | null>(null);
-  const [editable, setEditable] = useState(true);
+  const [hasProgress, setHasProgress] = useState(false);
   const [draft, setDraft] = useState<PersonalPlanDraft>(EMPTY_DRAFT);
   const [selectedDay, setSelectedDay] = useState(1);
   const [openGroup, setOpenGroup] = useState<string | null>(
@@ -80,7 +81,7 @@ export default function PersonalPlanBuilder() {
     try {
       const result = await api<PersonalPlanResponse>("/personal-plan");
       setPlan(result.plan);
-      setEditable(Boolean(result.editable));
+      setHasProgress(Boolean(result.hasProgress));
       if (result.plan) {
         const hydrated = personalPlanDraftFromPlan(result.plan);
         setDraft(hydrated);
@@ -242,9 +243,22 @@ export default function PersonalPlanBuilder() {
       return;
     }
 
+    const changed = plan
+      ? JSON.stringify(draft.days) !==
+        JSON.stringify(personalPlanDraftFromPlan(plan).days)
+      : true;
+    if (plan && hasProgress && changed) {
+      const confirmed = window.confirm(
+        "Se guardará una copia de tu rutina actual con todas sus sesiones y series. " +
+          "La nueva versión empezará un ciclo de entrenamiento desde el próximo lunes. " +
+          "Podrás consultar las versiones anteriores en Mi progreso. ¿Continuar?"
+      );
+      if (!confirmed) return;
+    }
+
     setSaving(true);
     try {
-      await savePersonalPlan(draft, Boolean(plan));
+      await savePersonalPlan(draft, Boolean(plan), plan);
       navigate("/entrenamiento");
       toast.success(
         plan
@@ -262,22 +276,6 @@ export default function PersonalPlanBuilder() {
     }
   };
 
-  const openTraining = async () => {
-    if (!plan) return;
-    setSaving(true);
-    try {
-      await selectPlan(plan.id);
-      navigate("/entrenamiento");
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "No se pudo abrir tu Plan Personal."
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <FitLayout title="Plan Personal">
@@ -329,14 +327,6 @@ export default function PersonalPlanBuilder() {
               Reintentar
             </button>
           </div>
-        ) : plan && !editable ? (
-          <ProtectedPlanView
-            plan={plan}
-            selectedDay={selectedDay}
-            onSelectDay={setSelectedDay}
-            opening={saving}
-            onOpenTraining={() => void openTraining()}
-          />
         ) : (
           <form className="pp-builder-form" onSubmit={submit}>
             <div className="pp-form-heading">
@@ -642,6 +632,18 @@ export default function PersonalPlanBuilder() {
               </section>
             </div>
 
+            {plan && hasProgress && (
+              <div className="pp-safety-note" role="note">
+                <ShieldCheck size={18} />
+                <p>
+                  <strong>Podés editar tu rutina sin perder el historial.</strong>{" "}
+                  Si guardás cambios, se archiva la versión anterior con todas
+                  sus sesiones y fechas. La nueva versión empieza un ciclo
+                  independiente; consultá las anteriores en{" "}
+                  <Link href="/progreso">Mi progreso</Link>.
+                </p>
+              </div>
+            )}
             <div className="pp-safety-note">
               <Info size={17} />
               <p>
@@ -730,115 +732,3 @@ function NumericField({
   );
 }
 
-function ProtectedPlanView({
-  plan,
-  selectedDay,
-  onSelectDay,
-  onOpenTraining,
-  opening,
-}: {
-  plan: TrainingPlan;
-  selectedDay: number;
-  onSelectDay: (day: number) => void;
-  onOpenTraining: () => void;
-  opening: boolean;
-}) {
-  const days = plan.routine.first;
-  const activeDay = days.find(day => day.day === selectedDay) ?? days[0];
-  return (
-    <section className="pp-protected-view">
-      <div className="pp-protected-banner">
-        <span className="pp-protected-icon">
-          <ShieldCheck size={22} />
-        </span>
-        <div>
-          <span className="pp-eyebrow">ESTRUCTURA PROTEGIDA</span>
-          <h2>Tu historial cuida esta rutina.</h2>
-          <p>
-            Ya hay progreso asociado a tu Plan Personal. Para proteger tus
-            registros, no se pueden cambiar los días, ejercicios, el orden ni
-            las cantidades. Sí podés abrirlo y seguir entrenando.
-          </p>
-        </div>
-        <button
-          className="button pp-save-button pp-open-plan"
-          onClick={onOpenTraining}
-          disabled={opening}
-        >
-          {opening ? "Abriendo…" : "Abrir Plan Personal"}{" "}
-          <ArrowRight size={17} />
-        </button>
-      </div>
-      <div className="pp-protected-days">
-        <div className="pp-panel-heading">
-          <div>
-            <span className="pp-eyebrow">VISTA DE TU RUTINA</span>
-            <h3>Plan Personal</h3>
-          </div>
-          <span className="pp-private-badge">
-            <LockKeyhole size={14} /> Privado
-          </span>
-        </div>
-        <div
-          className="pp-week-picker"
-          role="group"
-          aria-label="Días de tu Plan Personal"
-        >
-          {WEEKDAYS.map((label, index) => {
-            const dayNumber = index + 1;
-            const day = days.find(item => item.day === dayNumber);
-            return (
-              <button
-                key={dayNumber}
-                className={`pp-day-tab ${selectedDay === dayNumber ? "is-selected" : ""} ${day ? "has-exercises" : ""}`}
-                type="button"
-                aria-pressed={selectedDay === dayNumber}
-                onClick={() => day && onSelectDay(dayNumber)}
-                disabled={!day}
-              >
-                <span>{label.slice(0, 2)}</span>
-                <strong>{label}</strong>
-                <small>
-                  {day
-                    ? `${day.exercises.length} ${day.exercises.length === 1 ? "ejercicio" : "ejercicios"}`
-                    : "Libre"}
-                </small>
-              </button>
-            );
-          })}
-        </div>
-        {activeDay ? (
-          <div className="pp-protected-exercises">
-            <span className="pp-eyebrow">{activeDay.focus}</span>
-            <h3>{activeDay.label}</h3>
-            <ol>
-              {activeDay.exercises.map((exercise, index) => (
-                <li key={exercise.id}>
-                  <span className="pp-protected-number">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <div>
-                    <strong>{exercise.name}</strong>
-                    <p>{exercise.tips}</p>
-                  </div>
-                  <span className="pp-protected-dose">
-                    {exercise.sets ?? 3} ×{" "}
-                    {exercise.seconds
-                      ? `${exercise.seconds} s`
-                      : (exercise.reps ?? "10 repeticiones")}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        ) : (
-          <p className="pp-panel-hint">Este día queda libre en tu plan.</p>
-        )}
-        <div className="pp-protected-footnote">
-          <LockKeyhole size={15} /> No se comparte con otras cuentas.
-          Administración puede consultar tu seguimiento.
-        </div>
-      </div>
-    </section>
-  );
-}
