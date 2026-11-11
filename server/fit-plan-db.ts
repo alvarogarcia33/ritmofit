@@ -4,7 +4,7 @@ import { getFitPool } from "./fit-db";
 import type { FitLevel } from "./fit-db";
 import type { TrainingPlan } from "../shared/programs";
 
-export const FIT_PLAN_SCHEMA_VERSION = 2;
+export const FIT_PLAN_SCHEMA_VERSION = 3;
 
 export interface FitPlanRow extends RowDataPacket {
   id: string;
@@ -22,6 +22,16 @@ export interface FitPlanEnrollmentRow extends RowDataPacket {
   rest_seconds: number;
   created_at: string | Date;
   updated_at: string | Date;
+}
+
+export interface FitPersonalPlanVersionRow extends RowDataPacket {
+  user_id: number;
+  plan_id: string;
+  version: number;
+  plan_payload: string | TrainingPlan;
+  progress_snapshot: string | FitPlanProgressRow[];
+  start_date: string | Date;
+  archived_at: string | Date;
 }
 
 export interface FitActivePlanRow extends RowDataPacket {
@@ -172,6 +182,31 @@ const TABLE_DEFINITIONS: Array<{
         definition:
           "DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)",
       },
+    ],
+  },
+  {
+    name: "fit_personal_plan_versions",
+    create: `
+      CREATE TABLE IF NOT EXISTS fit_personal_plan_versions (
+        user_id BIGINT UNSIGNED NOT NULL,
+        plan_id VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+        version INT UNSIGNED NOT NULL,
+        plan_payload JSON NOT NULL,
+        progress_snapshot JSON NOT NULL,
+        start_date DATE NOT NULL,
+        archived_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        PRIMARY KEY (user_id, plan_id, version),
+        KEY fit_personal_versions_user_idx (user_id, archived_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `,
+    columns: [
+      { name: "user_id", definition: "BIGINT UNSIGNED NOT NULL" },
+      { name: "plan_id", definition: "VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL" },
+      { name: "version", definition: "INT UNSIGNED NOT NULL" },
+      { name: "plan_payload", definition: "JSON NULL" },
+      { name: "progress_snapshot", definition: "JSON NULL" },
+      { name: "start_date", definition: "DATE NOT NULL DEFAULT '1970-01-01'" },
+      { name: "archived_at", definition: "DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)" },
     ],
   },
   {
@@ -460,31 +495,113 @@ export class FitPersonalPlanLockedError extends Error {
   }
 }
 
-/** Serializes edits with progress writes on the owned plan row. No history is deleted. */
+export class FitPersonalPlanConflictError extends Error {
+  constructor() {
+    super("The personal plan changed since it was opened");
+    this.name = "FitPersonalPlanConflictError";
+  }
+}
+
+/** Return every archived edition belonging to this account, never by client ID. */
+export async function listFitPersonalPlanVersions(
+  userId: number,
+  planId: string
+): Promise<FitPersonalPlanVersionRow[]> {
+  return selectRows<FitPersonalPlanVersionRow>(
+    `SELECT user_id, plan_id, version, plan_payload, progress_snapshot,
+            start_date, archived_at
+       FROM fit_personal_plan_versions
+      WHERE user_id = ? AND plan_id = ?
+      ORDER BY version DESC`,
+    [userId, planId]
+  );
+}
+
+function readPlanPayload(value: string | TrainingPlan): TrainingPlan {
+  return typeof value === "string" ? JSON.parse(value) : value;
+}
+
+/**
+ * Serialize edits with personal progress writes on the plan row.
+ * A changed routine archives the exact previous plan and its progress in
+ * the same transaction. The new cycle starts with clean day keys, while
+ * earlier sessions remain retrievable under their original exercises/dates.
+ * No user data is deleted unless its archive insert succeeds atomically.
+ */
 export async function updateFitPersonalPlan(
   userId: number,
-  plan: TrainingPlan
-): Promise<void> {
+  plan: TrainingPlan,
+  expectedPlan: TrainingPlan,
+  nextStartDate: string
+): Promise<{ archived: boolean; version: number; restarted: boolean }> {
   const connection = await planPool().getConnection();
   let inTransaction = false;
   try {
     await connection.beginTransaction();
     inTransaction = true;
-    const [owned] = await connection.execute<RowDataPacket[]>(
-      "SELECT id FROM fit_plans WHERE id = ? AND owner_user_id = ? FOR UPDATE",
+    const [owned] = await connection.execute<FitPlanRow[]>(
+      "SELECT payload FROM fit_plans WHERE id = ? AND owner_user_id = ? FOR UPDATE",
       [plan.id, userId]
     );
     if (!owned[0]) throw new FitPersonalPlanLockedError();
-    const [history] = await connection.execute<RowDataPacket[]>(
-      "SELECT 1 FROM fit_plan_progress WHERE user_id = ? AND plan_id = ? LIMIT 1 FOR UPDATE",
+    const stored = readPlanPayload(owned[0].payload);
+    if (!isDeepStrictEqual(stored, expectedPlan))
+      throw new FitPersonalPlanConflictError();
+
+    const [lastVersions] = await connection.execute<RowDataPacket[]>(
+      `SELECT COALESCE(MAX(version), 0) AS last_version
+         FROM fit_personal_plan_versions
+        WHERE user_id = ? AND plan_id = ?`,
       [userId, plan.id]
     );
-    if (history.length) throw new FitPersonalPlanLockedError();
+    const previousVersion = Number(lastVersions[0]?.last_version ?? 0) + 1;
+    if (isDeepStrictEqual(stored, plan)) {
+      await connection.commit();
+      inTransaction = false;
+      return { archived: false, version: previousVersion, restarted: false };
+    }
+
+    const [enrollments] = await connection.execute<FitPlanEnrollmentRow[]>(
+      "SELECT start_date FROM fit_plan_enrollments WHERE user_id = ? AND plan_id = ? FOR UPDATE",
+      [userId, plan.id]
+    );
+    if (!enrollments[0]) throw new Error("Personal plan enrollment not found");
+    const [progress] = await connection.execute<FitPlanProgressRow[]>(
+      `SELECT ${PLAN_PROGRESS_COLUMNS} FROM fit_plan_progress
+         WHERE user_id = ? AND plan_id = ? FOR UPDATE`,
+      [userId, plan.id]
+    );
+    const restarted = progress.length > 0;
+    await connection.execute(
+      `INSERT INTO fit_personal_plan_versions
+         (user_id, plan_id, version, plan_payload, progress_snapshot, start_date)
+       VALUES (?, ?, ?, CAST(? AS JSON), CAST(? AS JSON), ?)`,
+      [
+        userId,
+        plan.id,
+        previousVersion,
+        JSON.stringify(stored),
+        JSON.stringify(progress),
+        enrollments[0].start_date,
+      ]
+    );
+
+    if (restarted) {
+      await connection.execute(
+        "DELETE FROM fit_plan_progress WHERE user_id = ? AND plan_id = ?",
+        [userId, plan.id]
+      );
+      await connection.execute(
+        `UPDATE fit_plan_enrollments
+            SET start_date = ?, updated_at = CURRENT_TIMESTAMP(3)
+          WHERE user_id = ? AND plan_id = ?`,
+        [nextStartDate, userId, plan.id]
+      );
+    }
     await connection.execute(
       "UPDATE fit_plans SET payload = CAST(? AS JSON), updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? AND owner_user_id = ?",
       [JSON.stringify(plan), plan.id, userId]
     );
-    // Keep enrollment ID, start date, level and configured rest timer intact.
     await connection.execute(
       `INSERT INTO fit_active_plans (user_id, plan_id, updated_at)
        VALUES (?, ?, CURRENT_TIMESTAMP(3))
@@ -493,6 +610,7 @@ export async function updateFitPersonalPlan(
     );
     await connection.commit();
     inTransaction = false;
+    return { archived: true, version: previousVersion + 1, restarted };
   } catch (error) {
     if (inTransaction) await connection.rollback();
     throw error;
