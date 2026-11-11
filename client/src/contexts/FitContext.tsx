@@ -48,7 +48,8 @@ interface FitContextValue {
   ) => Promise<void>;
   savePersonalPlan: (
     draft: PersonalPlanDraft,
-    update: boolean
+    update: boolean,
+    previousPlan: TrainingPlan | null
   ) => Promise<void>;
   authenticate: (path: "/login" | "/register", body: unknown) => Promise<void>;
   logout: () => Promise<void>;
@@ -280,7 +281,8 @@ export function FitProvider({ children }: { children: ReactNode }) {
   ) => selectPlan(planId, preferences);
   const savePersonalPlan = async (
     draft: PersonalPlanDraft,
-    update: boolean
+    update: boolean,
+    previousPlan: TrainingPlan | null
   ) => {
     if (!user) throw new Error("Inicia sesión para guardar tu Plan Personal.");
     if (personalPlanSaving.current)
@@ -292,9 +294,15 @@ export function FitProvider({ children }: { children: ReactNode }) {
     let saveConfirmed = false;
     setError(null);
     try {
+      const expectedPlan = previousPlan
+        ? (({ isPersonal: _flag, ...stored }) => stored)(previousPlan)
+        : null;
       await api<{ plan: TrainingPlan; activePlanId: string }>(
         "/personal-plan",
-        { method: update ? "PUT" : "POST", body: draft }
+        {
+          method: update ? "PUT" : "POST",
+          body: update ? { ...draft, expectedPlan } : draft,
+        }
       );
       saveConfirmed = true;
 
