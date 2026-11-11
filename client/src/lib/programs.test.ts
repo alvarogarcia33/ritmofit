@@ -289,6 +289,68 @@ describe("Biblioteca de planes y dosificación de las fuentes", () => {
     );
     expect(stored).toEqual(snapshot);
   });
+  it("actualiza los cinco videos del jueves y conserva tres series de diez y los demás días", () => {
+    const ids = [
+      "gY2Wp2PXF8w",
+      "zuID1WDdAFE",
+      "-PNgCrCPcPM",
+      "w8Knw73_Tw8",
+      "4NWWB0f0vzQ",
+    ];
+    const stored = structuredClone(tone);
+    for (const week of ["first", "second"] as const) {
+      const day = stored.routine[week].find(d => d.day === 4)!;
+      day.exercises.forEach((e, index) => {
+        e.videoUrl = "";
+        e.thumbnail = `/plans/tonificar/d4-e${index + 1}.webp`;
+      });
+    }
+    const snapshot = structuredClone(stored);
+    const { plan: migrated, updatedExerciseIds } =
+      replacePlanExerciseMediaFromDefault(stored, tone, 4);
+    expect(updatedExerciseIds.sort()).toEqual(
+      ids.map((_, i) => `tone-d4-e${i + 1}`)
+    );
+    expect(migrated.coverImage).toBe(snapshot.coverImage);
+    for (const week of [1, 4]) {
+      const day = planDay(migrated, week, 4)!;
+      expect(day.exercises.map(e => e.videoUrl)).toEqual(
+        ids.map(id => `https://www.youtube.com/shorts/${id}`)
+      );
+      expect(day.exercises.map(e => getVideoEmbedUrl(e.videoUrl))).toEqual(
+        ids.map(
+          id =>
+            `https://www.youtube-nocookie.com/embed/${id}?rel=0&playsinline=1`
+        )
+      );
+      expect(day.exercises.map(e => e.thumbnail)).toEqual(
+        ids.map(id => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`)
+      );
+      const sourceFields = (e: (typeof day.exercises)[number]) => [
+        e.id,
+        e.name,
+        e.sets,
+        e.reps,
+        e.tips,
+        e.sourceImage,
+      ];
+      expect(day.exercises.map(sourceFields)).toEqual(
+        planDay(snapshot, week, 4)!.exercises.map(sourceFields)
+      );
+      expect(
+        day.exercises.every(e => e.sets === 3 && e.reps === "10 repeticiones")
+      ).toBe(true);
+      expect(day.sourceImage).toBe("/plans/tonificar/day-4.webp");
+      for (const otherDay of [1, 2, 3, 5])
+        expect(planDay(migrated, week, otherDay)).toEqual(
+          planDay(snapshot, week, otherDay)
+        );
+    }
+    expect(requiredPlanSets(migrated, 1, 4, "beginner")).toEqual(
+      requiredPlanSets(snapshot, 1, 4, "beginner")
+    );
+    expect(stored).toEqual(snapshot);
+  });
   it("calcula atrasos solo de los días propios del plan y respeta su fecha de inscripción", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-11-08T16:00:00Z"));

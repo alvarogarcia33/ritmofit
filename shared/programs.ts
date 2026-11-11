@@ -327,35 +327,65 @@ const TONE_DAYS: RoutineDay[] = [
         1,
         "Press militar",
         "10 repeticiones",
-        "Con un peso sostenible. La ilustración muestra la variante sentada con barra."
+        "Con un peso sostenible. La ilustración muestra la variante sentada con barra.",
+        {
+          video: toneVideo(
+            "gY2Wp2PXF8w",
+            "https://www.youtube.com/shorts/gY2Wp2PXF8w"
+          ),
+        }
       ),
       toneExercise(
         4,
         2,
         "Vuelos frontales",
         "10 repeticiones",
-        "Con un peso sostenible, según la lámina."
+        "Con un peso sostenible, según la lámina.",
+        {
+          video: toneVideo(
+            "zuID1WDdAFE",
+            "https://www.youtube.com/shorts/zuID1WDdAFE"
+          ),
+        }
       ),
       toneExercise(
         4,
         3,
         "Apertura de pecho",
         "10 repeticiones",
-        "Con un peso sostenible. La ilustración muestra la variante en máquina."
+        "Con un peso sostenible. La ilustración muestra la variante en máquina.",
+        {
+          video: toneVideo(
+            "-PNgCrCPcPM",
+            "https://www.youtube.com/shorts/-PNgCrCPcPM"
+          ),
+        }
       ),
       toneExercise(
         4,
         4,
         "Vuelos laterales",
         "10 repeticiones",
-        "Con un peso sostenible, según la lámina."
+        "Con un peso sostenible, según la lámina.",
+        {
+          video: toneVideo(
+            "w8Knw73_Tw8",
+            "https://www.youtube.com/shorts/w8Knw73_Tw8"
+          ),
+        }
       ),
       toneExercise(
         4,
         5,
         "Extensión de tríceps",
         "10 repeticiones",
-        "Con un peso sostenible. La ilustración muestra la extensión en polea."
+        "Con un peso sostenible. La ilustración muestra la extensión en polea.",
+        {
+          video: toneVideo(
+            "4NWWB0f0vzQ",
+            "https://www.youtube.com/shorts/4NWWB0f0vzQ"
+          ),
+        }
       ),
     ],
   },
