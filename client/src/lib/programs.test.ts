@@ -38,6 +38,20 @@ describe("Biblioteca de planes y dosificación de las fuentes", () => {
     expect(requiredPlanSets(legacy, 1, 1, "intermediate")).toHaveLength(28);
     expect(requiredPlanSets(legacy, 1, 1, "advanced")).toHaveLength(27);
   });
+  it("usa la portada original de Fuerza + control sin reemplazar las láminas ni Adelgazar", () => {
+    expect(tone.coverImage).toBe(
+      "/manus-storage/async-images/VwMfzeRAmktLUa0hud9r3g/image-1.webp"
+    );
+    expect(legacy.coverImage).toBe("/exercises/program-banner.png");
+    expect(tone.subtitle).toBe("Fuerza + control");
+    expect(tone.routine.first.map(day => day.sourceImage)).toEqual([
+      "/plans/tonificar/day-1.webp",
+      "/plans/tonificar/day-2.webp",
+      "/plans/tonificar/day-3.webp",
+      "/plans/tonificar/day-4.webp",
+      "/plans/tonificar/day-5.webp",
+    ]);
+  });
   it("organiza Tonificar con las 28 fichas de lunes a viernes y deja el fin de semana sin sesión", () => {
     expect(tone.routine.first.map(d => d.day)).toEqual([1, 2, 3, 4, 5]);
     expect(tone.routine.first.map(d => d.exercises.length)).toEqual([

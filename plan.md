@@ -38,6 +38,8 @@ El inicio de sesión o registro es la primera pantalla y la única ruta de la ap
 
 Se conserva el sistema visual fitness editorial: tipografía Manrope/DM Sans, blanco amplio, curvas suaves y bloques de acento. La biblioteca se presenta con dos tarjetas amplias de portada, una introducción breve y un acceso inmediato para continuar, en lugar de una lista técnica. Cada tarjeta muestra días, estructura y procedencia; el color acompaña botones, progreso y cabecera del entrenamiento. El plan activo aparece siempre identificado y hay un acceso visible para cambiarlo. La selección confirma qué datos se conservan. Móvil usa una columna, controles táctiles y referencias ampliables; las estrellas y transiciones respetan movimiento reducido.
 
+La opción 2, Tonificar / Fuerza + control, recibe una portada fotográfica original de entrenamiento de fuerza, horizontal, sin texto incrustado y en tonos violeta. Los rótulos existentes de la tarjeta se conservan. La imagen generada sustituye solo `coverImage`, con persistencia idempotente de una sola ejecución; no se reemplazan láminas de ejercicio ni se modifica el plan Adelgazar.
+
 ## Limitaciones explícitas
 
 El historial antiguo corresponde exclusivamente a Adelgazar. Las láminas no incluyen enlaces de video ni una prescripción de descanso; se usan sus ilustraciones como demostración y el reloj configurable como ayuda. Las gráficas muestran cumplimiento de entrenamiento, no resultados corporales ni garantías de adelgazamiento o tonificación.

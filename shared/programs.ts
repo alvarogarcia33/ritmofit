@@ -403,7 +403,8 @@ export const DEFAULT_PLANS: TrainingPlan[] = [
     description:
       "Las cinco láminas que compartiste, organizadas para seguir cada serie, descansar y construir constancia. De lunes a viernes, con las cantidades de cada imagen.",
     color: "#7c4ed4",
-    coverImage: "/plans/tonificar/d1-e1.webp",
+    coverImage:
+      "/manus-storage/async-images/VwMfzeRAmktLUa0hud9r3g/image-1.webp",
     weeks: 4,
     mode: "straight",
     restSeconds: 90,

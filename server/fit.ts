@@ -32,6 +32,7 @@ import {
 } from "./fit-db";
 import {
   initializeFitPlanDatabase,
+  migrateFitPlanCoverOnce,
   migrateFitPlanDayMediaOnce,
   seedDefaultFitPlans,
 } from "./fit-plan-db";
@@ -672,6 +673,11 @@ export async function registerFitRoutes(app: Express): Promise<void> {
       tonificar,
       2,
       replacePlanExerciseMediaFromDefault
+    );
+    await migrateFitPlanCoverOnce(
+      "tonificar-cover-art-vwmfze-2026-11-10",
+      tonificar.id,
+      tonificar.coverImage
     );
   }
   await purgeExpiredFitSessions();

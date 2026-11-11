@@ -403,6 +403,60 @@ export async function migrateFitPlanDayMediaOnce(
   }
 }
 
+export async function migrateFitPlanCoverOnce(
+  migrationName: string,
+  planId: string,
+  coverImage: string
+): Promise<boolean> {
+  if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(migrationName))
+    throw new Error("Invalid fit-plan migration name");
+  const connection = await planPool().getConnection();
+  let inTransaction = false;
+  try {
+    await connection.beginTransaction();
+    inTransaction = true;
+    await connection.execute(
+      `INSERT IGNORE INTO fit_plan_schema_meta (schema_name, version, updated_at)
+       VALUES (?, 0, CURRENT_TIMESTAMP(3))`,
+      [migrationName]
+    );
+    const [markers] = await connection.execute<RowDataPacket[]>(
+      `SELECT version FROM fit_plan_schema_meta WHERE schema_name = ? FOR UPDATE`,
+      [migrationName]
+    );
+    if (Number(markers[0]?.version ?? 0) >= 1) {
+      await connection.commit();
+      inTransaction = false;
+      return false;
+    }
+    const [result] = await connection.execute<ResultSetHeader>(
+      `UPDATE fit_plans
+       SET payload = JSON_SET(payload, '$.coverImage', ?),
+           updated_at = CURRENT_TIMESTAMP(3)
+       WHERE id = ?`,
+      [coverImage, planId]
+    );
+    if (!result.affectedRows) {
+      await connection.rollback();
+      inTransaction = false;
+      return false;
+    }
+    await connection.execute(
+      `UPDATE fit_plan_schema_meta SET version = 1, updated_at = CURRENT_TIMESTAMP(3)
+       WHERE schema_name = ?`,
+      [migrationName]
+    );
+    await connection.commit();
+    inTransaction = false;
+    return true;
+  } catch (error) {
+    if (inTransaction) await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 export async function seedDefaultFitPlans(
   defaults: TrainingPlan[]
 ): Promise<void> {
