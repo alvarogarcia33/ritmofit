@@ -24,6 +24,14 @@ export type Progress = {
   completedAt: string | null;
   updatedAt: string;
 };
+export type PersonalPlanArchive = {
+  version: number;
+  plan: TrainingPlan;
+  startDate: string;
+  archivedAt: string;
+  progress: Progress[];
+};
+
 export type ContentOverride = {
   exerciseId: string;
   name: string;
