@@ -42,6 +42,8 @@ Se conserva el sistema visual fitness editorial: tipografía Manrope/DM Sans, bl
 
 La opción 2, Tonificar / Fuerza + control, recibe una portada fotográfica original de entrenamiento de fuerza, horizontal, sin texto incrustado y en tonos violeta. Los rótulos existentes de la tarjeta se conservan. La imagen generada sustituye solo `coverImage`, con persistencia idempotente de una sola ejecución; no se reemplazan láminas de ejercicio ni se modifica el plan Adelgazar.
 
+La opción 1, Adelgazar / Fuerza + movimiento, también recibe una portada fotográfica original: entrenamiento dinámico con mancuernas en rosa/fucsia, composición horizontal 3:2 y espacio para el título y número existentes. Se sustituye únicamente `coverImage`, con una migración independiente de una sola ejecución que respeta futuras ediciones administrativas. Se conservan íntegros todos los ejercicios, videos, niveles, progreso y el plan Tonificar.
+
 ## Limitaciones explícitas
 
 El historial antiguo corresponde exclusivamente a Adelgazar. Las láminas no incluyen enlaces de video ni una prescripción de descanso; se usan sus ilustraciones como demostración y el reloj configurable como ayuda. Las gráficas muestran cumplimiento de entrenamiento, no resultados corporales ni garantías de adelgazamiento o tonificación.

@@ -452,7 +452,8 @@ export const DEFAULT_PLANS: TrainingPlan[] = [
     description:
       "Tu programa original de Pérdida de Peso: super series, tres niveles y cardio. El historial que ya construiste sigue aquí.",
     color: "#e9387a",
-    coverImage: "/exercises/program-banner.png",
+    coverImage:
+      "/manus-storage/async-images/zP49ZzlgK0C48Q1zStaQj1/image-1.webp",
     weeks: 4,
     mode: "supersets",
     restSeconds: 120,

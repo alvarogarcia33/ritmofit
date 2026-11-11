@@ -38,11 +38,15 @@ describe("Biblioteca de planes y dosificación de las fuentes", () => {
     expect(requiredPlanSets(legacy, 1, 1, "intermediate")).toHaveLength(28);
     expect(requiredPlanSets(legacy, 1, 1, "advanced")).toHaveLength(27);
   });
-  it("usa la portada original de Fuerza + control sin reemplazar las láminas ni Adelgazar", () => {
+  it("usa portadas originales propias de cada plan sin reemplazar las láminas ni rutinas", () => {
     expect(tone.coverImage).toBe(
       "/manus-storage/async-images/VwMfzeRAmktLUa0hud9r3g/image-1.webp"
     );
-    expect(legacy.coverImage).toBe("/exercises/program-banner.png");
+    expect(legacy.coverImage).toBe(
+      "/manus-storage/async-images/zP49ZzlgK0C48Q1zStaQj1/image-1.webp"
+    );
+    expect(legacy.subtitle).toBe("Fuerza + movimiento");
+    expect(legacy.routine).toBe(ROUTINE);
     expect(tone.subtitle).toBe("Fuerza + control");
     expect(tone.routine.first.map(day => day.sourceImage)).toEqual([
       "/plans/tonificar/day-1.webp",

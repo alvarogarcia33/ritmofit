@@ -694,6 +694,14 @@ export async function registerFitRoutes(app: Express): Promise<void> {
       tonificar.coverImage
     );
   }
+  const adelgazar = DEFAULT_PLANS.find(plan => plan.id === "adelgazar");
+  if (adelgazar) {
+    await migrateFitPlanCoverOnce(
+      "adelgazar-cover-art-zp49zz-2026-11-11",
+      adelgazar.id,
+      adelgazar.coverImage
+    );
+  }
   await purgeExpiredFitSessions();
 
   const router = express.Router();
