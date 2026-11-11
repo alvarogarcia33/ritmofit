@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   ArrowRight,
@@ -21,11 +22,56 @@ import {
 import { FitLayout } from "@/components/FitLayout";
 import { EmptyState } from "@/components/FitWidgets";
 import { useFit } from "@/contexts/FitContext";
-import { dateLabel, dayDate } from "@/lib/fit";
+import { api, dateLabel, dayDate, type PersonalPlanArchive } from "@/lib/fit";
 import { planDays, planTotalSessions } from "@shared/programs";
 
 export default function ProgressPage() {
   const { planUser: user, loading, planLoading, progress, plan } = useFit();
+  const [archives, setArchives] = useState<PersonalPlanArchive[]>([]);
+  const [archivesLoading, setArchivesLoading] = useState(false);
+  const [archivesError, setArchivesError] = useState<string | null>(null);
+  const [openArchive, setOpenArchive] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user || !plan.isPersonal) {
+      setArchives([]);
+      setArchivesError(null);
+      setArchivesLoading(false);
+      return;
+    }
+    let active = true;
+    setArchives([]);
+    setArchivesLoading(true);
+    setArchivesError(null);
+    void api<{ versions: PersonalPlanArchive[] }>("/personal-plan/versions")
+      .then(data => {
+        if (active) setArchives(data.versions);
+      })
+      .catch(error => {
+        if (active) {
+          setArchivesError(
+            error instanceof Error ? error.message : "No se pudo cargar el historial."
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setArchivesLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [user?.id, plan.id, plan.isPersonal]);
+
+  const archivedSessions = archives.reduce(
+    (total, edition) =>
+      total + edition.progress.filter(record => record.completedAt).length,
+    0
+  );
+  const archivedSets = archives.reduce(
+    (total, edition) =>
+      total + edition.progress.reduce((count, record) => count + record.completedSets.length, 0),
+    0
+  );
   const totalSessions = planTotalSessions(plan);
   const completed = progress.filter(p => p.completedAt).length;
   const totalSets = progress.reduce(
@@ -241,7 +287,11 @@ export default function ProgressPage() {
               <EmptyState
                 icon={<Star size={24} />}
                 title="La primera estrella te espera."
-                text="Completa tu primera sesión y verás aquí tu historial. No se muestran datos de ejemplo."
+                text={
+                  archivedSessions
+                    ? "Esta versión todavía no tiene sesiones. Tus entrenamientos anteriores se conservan abajo, en el historial de versiones."
+                    : "Completa tu primera sesión y verás aquí tu historial. No se muestran datos de ejemplo."
+                }
                 action={
                   <Link href="/entrenamiento" className="text-link">
                     Ir a mi entrenamiento →
@@ -301,6 +351,124 @@ export default function ProgressPage() {
               </div>
             )}
           </section>
+          {plan.isPersonal && (
+            <section className="history-card" aria-label="Versiones anteriores de tu rutina">
+              <div className="section-heading">
+                <div>
+                  <h2>Versiones anteriores de tu Plan Personal</h2>
+                  <p>
+                    Cada edición conserva los ejercicios, las fechas y las
+                    series de su ciclo. Tus sesiones anteriores no se mezclan
+                    con la rutina activa.
+                  </p>
+                </div>
+                <Award size={21} />
+              </div>
+              {archivesLoading ? (
+                <p className="measurement-note">Cargando versiones anteriores…</p>
+              ) : archivesError ? (
+                <p role="alert">{archivesError}</p>
+              ) : !archives.length ? (
+                <p className="measurement-note">
+                  Todavía no hay versiones anteriores. Podés cambiar la rutina
+                  desde Mis planes sin perder tus entrenamientos.
+                </p>
+              ) : (
+                <>
+                  <p className="measurement-note">
+                    <strong>Historial acumulado:</strong>{" "}
+                    {archivedSessions + completed} sesiones cumplidas y{" "}
+                    {archivedSets + totalSets} series registradas entre todas
+                    las versiones del Plan Personal.
+                  </p>
+                  <div className="history-list">
+                    {archives.map(edition => {
+                      const sessionCount = edition.progress.filter(
+                        record => record.completedAt
+                      ).length;
+                      const isOpen = openArchive === edition.version;
+                      const records = [...edition.progress]
+                        .filter(record =>
+                          record.completedSets.length ||
+                          record.warmupDone ||
+                          record.cardioDone
+                        )
+                        .sort((a, b) => b.dayKey.localeCompare(a.dayKey));
+                      return (
+                        <div key={edition.version} className="history-card">
+                          <button
+                            type="button"
+                            className="history-row"
+                            aria-expanded={isOpen}
+                            onClick={() =>
+                              setOpenArchive(isOpen ? null : edition.version)
+                            }
+                          >
+                            <span className="history-icon complete">
+                              <Dumbbell size={19} />
+                            </span>
+                            <div>
+                              <strong>Versión {edition.version}</strong>
+                              <span>
+                                Inicio: {dateLabel(edition.startDate, true)} ·
+                                Archivada:{" "}
+                                {new Date(edition.archivedAt).toLocaleDateString("es")}
+                              </span>
+                            </div>
+                            <span className="history-series">
+                              {sessionCount} sesiones · {records.length} registros
+                            </span>
+                            <ArrowRight size={16} />
+                          </button>
+                          {isOpen && (
+                            <div className="history-list">
+                              {records.length ? (
+                                records.map(record => {
+                                  const match = /^w(\d+)-d([1-7])$/.exec(record.dayKey);
+                                  if (!match) return null;
+                                  const week = Number(match[1]);
+                                  const day = Number(match[2]);
+                                  const originalDay = planDays(edition.plan, week)
+                                    .find(item => item.day === day);
+                                  return (
+                                    <div className="history-row" key={record.dayKey}>
+                                      <span className="history-icon">
+                                        {record.completedAt
+                                          ? <Star size={18} />
+                                          : <Dumbbell size={18} />}
+                                      </span>
+                                      <div>
+                                        <strong>
+                                          {originalDay?.focus ?? "Sesión guardada"}
+                                        </strong>
+                                        <span>
+                                          {dateLabel(dayDate(edition.startDate, week, day), true)}
+                                          {" · "}
+                                          {originalDay?.exercises.map(item => item.name).join(", ")}
+                                        </span>
+                                      </div>
+                                      <span className="history-series">
+                                        {record.completedSets.length} series ·{" "}
+                                        {record.completedAt ? "Cumplida" : "Parcial"}
+                                      </span>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <p className="measurement-note">
+                                  Esta versión no tenía sesiones registradas.
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </section>
+          )}
           <div className="measurement-note">
             <TrendingUp size={18} />
             <p>
