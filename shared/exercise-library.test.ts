@@ -42,6 +42,84 @@ describe("Catálogo de grupos musculares y Plan Personal", () => {
     ).toContain("Remo con mancuerna");
   });
 
+  it("amplía el catálogo de todos los grupos sin eliminar ejercicios previos", () => {
+    const expectedCounts: Record<string, number> = {
+      pecho: 8,
+      espalda: 9,
+      hombros: 6,
+      biceps: 6,
+      triceps: 6,
+      cuadriceps: 7,
+      femorales: 6,
+      gluteos: 6,
+      aductores: 3,
+      abductores: 5,
+      pantorrillas: 5,
+      core: 7,
+    };
+    for (const group of EXERCISE_MUSCLE_GROUPS) {
+      expect(group.exercises, group.name).toHaveLength(expectedCounts[group.id]);
+      expect(group.exercises.every(item => item.muscleGroupId === group.id))
+        .toBe(true);
+    }
+
+    const allExercises = EXERCISE_MUSCLE_GROUPS.flatMap(group => group.exercises);
+    expect(allExercises).toHaveLength(74);
+    expect(new Set(allExercises.map(item => item.id)).size).toBe(74);
+    expect(
+      EXERCISE_MUSCLE_GROUPS.find(group => group.id === "espalda")
+        ?.exercises.map(item => item.name)
+    ).toContain("Jalón en polea alta con agarre V");
+    for (const addedId of [
+      "press-pecho-maquina",
+      "dominadas-asistidas",
+      "remo-maquina-pecho-apoyado",
+      "press-arnold",
+      "curl-biceps-polea-baja",
+      "press-banca-agarre-cerrado",
+      "sentadilla-hack",
+      "curl-femoral-pie",
+      "pull-through-polea",
+      "aduccion-polea-baja",
+      "clamshell-banda",
+      "pantorrillas-una-pierna",
+      "plancha-lateral",
+    ]) {
+      expect(allExercises.some(item => item.id === addedId)).toBe(true);
+    }
+  });
+
+  it("guarda y recupera los ejercicios nuevos sin alterar la dosis ni el historial del modelo", () => {
+    const draft = {
+      days: [
+        {
+          day: 1,
+          exercises: [
+            { exerciseId: "jalon-polea-agarre-v", sets: 4, target: 12 },
+            { exerciseId: "dominadas-asistidas", sets: 3, target: 8 },
+          ],
+        },
+        {
+          day: 4,
+          exercises: [
+            { exerciseId: "plancha-lateral", sets: 3, target: 40 },
+          ],
+        },
+      ],
+    };
+    const plan = buildPersonalPlan(id, draft);
+    expect(validateTrainingPlan(plan)).toEqual(plan);
+    expect(plan.routine.first[0].exercises.map(item => item.id)).toEqual([
+      "pp-d1-jalon-polea-agarre-v",
+      "pp-d1-dominadas-asistidas",
+    ]);
+    expect(plan.routine.first[0].exercises[0].sets).toBe(4);
+    expect(plan.routine.first[0].exercises[0].reps).toBe("12 repeticiones");
+    expect(plan.routine.first[1].exercises[0].seconds).toBe(40);
+    expect(plan.routine.first[1].exercises[0].reps).toBe("40 segundos");
+    expect(personalPlanDraftFromPlan(plan)).toEqual(draft);
+  });
+
   it("arma cuatro semanas por usuario, acepta domingo y conserva series/repeticiones elegidas", () => {
     const plan = buildPersonalPlan(id, {
       title: "Otro título que no se acepta",
