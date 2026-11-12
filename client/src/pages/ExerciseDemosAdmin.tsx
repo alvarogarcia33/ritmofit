@@ -9,6 +9,7 @@ import { api } from "@/lib/fit";
 import { EXERCISE_MUSCLE_GROUPS } from "@shared/exercise-library";
 import type { Exercise } from "@shared/routine";
 import { withPersonalDemo, type PersonalExerciseMedia } from "@shared/personal-exercise-media";
+import { getVideoEmbedUrl } from "@shared/video";
 import "../exercise-demos.css";
 
 const catalog = EXERCISE_MUSCLE_GROUPS.flatMap(group =>
@@ -182,6 +183,10 @@ export default function ExerciseDemosAdmin() {
                     };
                     // A not-yet-saved URL is previewable as well, after successful
                     // server validation for published media.
+                    if (url.trim() && !getVideoEmbedUrl(url.trim())) {
+                      toast.error("Ingresá un enlace HTTPS válido de YouTube o Vimeo.");
+                      return;
+                    }
                     setPreview({
                       ...withPersonalDemo(exercise, media),
                       videoUrl: url.trim() || "",
