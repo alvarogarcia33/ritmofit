@@ -12,6 +12,7 @@ import {
 } from "../shared/programs";
 import {
   buildPersonalPlan,
+  EXERCISE_MUSCLE_GROUPS,
   PERSONAL_PLAN_ADMIN_FILTER_ID,
   PERSONAL_PLAN_ID_PREFIX,
   PersonalPlanInputError,
@@ -29,6 +30,8 @@ import {
   findFitPersonalPlan,
   currentFitPersonalPlanVersion,
   listFitPersonalPlanVersions,
+  listPersonalExerciseMedia,
+  savePersonalExerciseMedia,
   FitPersonalPlanConflictError,
   findFitUserPlan,
   findFitActivePlan,
@@ -61,6 +64,7 @@ import {
   type FitUserRow,
 } from "./fit-db";
 import type { PublicFitProgress, PublicFitUser } from "./fit";
+import { getVideoEmbedUrl } from "../shared/video";
 import {
   readSetPerformance,
   validateSetPerformance,
@@ -887,6 +891,49 @@ export function registerFitPlanRoutes(
         });
       }
       res.json({ plans });
+    })
+  );
+
+  router.get(
+    "/personal-exercises/media",
+    route(async (req, res) => {
+      await deps.requireAuth(req);
+      const rows = await listPersonalExerciseMedia();
+      res.json({
+        media: rows.map(row => ({
+          exerciseId: row.exercise_id,
+          videoUrl: row.video_url,
+          credit: row.credit,
+        })),
+      });
+    })
+  );
+
+  router.put(
+    "/admin/personal-exercises/:exerciseId/media",
+    route(async (req, res) => {
+      const auth = await deps.requireAuth(req);
+      requireAdmin(auth, deps);
+      const exerciseId = String(req.params.exerciseId);
+      const validIds = new Set(
+        EXERCISE_MUSCLE_GROUPS.flatMap(group =>
+          group.exercises.map(item => item.id)
+        )
+      );
+      if (!validIds.has(exerciseId))
+        deps.fail(404, "El ejercicio no está en el catálogo del Plan Personal.");
+      const body = deps.bodyOf(req);
+      const rawUrl = text(body.videoUrl, "videoUrl", 0, 2048).trim();
+      const credit = text(body.credit ?? "", "credit", 0, 140).trim();
+      const validatedUrl = rawUrl ? videoUrl(rawUrl, "videoUrl", false) : "";
+      if (validatedUrl && !getVideoEmbedUrl(validatedUrl))
+        deps.fail(400, "El enlace debe identificar un video de YouTube o Vimeo.");
+      if (validatedUrl && !credit)
+        deps.fail(400, "Indicá la fuente o el creador del video.");
+      if (!validatedUrl && credit)
+        deps.fail(400, "La fuente requiere un enlace de video.");
+      await savePersonalExerciseMedia(exerciseId, validatedUrl, credit);
+      res.json({ media: { exerciseId, videoUrl: validatedUrl, credit } });
     })
   );
 

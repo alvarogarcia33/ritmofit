@@ -4,7 +4,7 @@ import { getFitPool } from "./fit-db";
 import type { FitLevel } from "./fit-db";
 import type { TrainingPlan } from "../shared/programs";
 
-export const FIT_PLAN_SCHEMA_VERSION = 4;
+export const FIT_PLAN_SCHEMA_VERSION = 5;
 
 export interface FitPlanRow extends RowDataPacket {
   id: string;
@@ -32,6 +32,13 @@ export interface FitPersonalPlanVersionRow extends RowDataPacket {
   progress_snapshot: string | FitPlanProgressRow[];
   start_date: string | Date;
   archived_at: string | Date;
+}
+
+export interface FitPersonalExerciseMediaRow extends RowDataPacket {
+  exercise_id: string;
+  video_url: string;
+  credit: string;
+  updated_at: Date | string;
 }
 
 export interface FitActivePlanRow extends RowDataPacket {
@@ -211,6 +218,24 @@ const TABLE_DEFINITIONS: Array<{
     ],
   },
   {
+    name: "fit_personal_exercise_media",
+    create: `
+      CREATE TABLE IF NOT EXISTS fit_personal_exercise_media (
+        exercise_id VARCHAR(80) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+        video_url VARCHAR(2048) NOT NULL,
+        credit VARCHAR(140) NOT NULL DEFAULT '',
+        updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+        PRIMARY KEY (exercise_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `,
+    columns: [
+      { name: "exercise_id", definition: "VARCHAR(80) CHARACTER SET ascii COLLATE ascii_bin NOT NULL" },
+      { name: "video_url", definition: "VARCHAR(2048) NOT NULL DEFAULT ''" },
+      { name: "credit", definition: "VARCHAR(140) NOT NULL DEFAULT ''" },
+      { name: "updated_at", definition: "DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)" },
+    ],
+  },
+  {
     name: "fit_active_plans",
     create: `
       CREATE TABLE IF NOT EXISTS fit_active_plans (
@@ -350,6 +375,38 @@ export async function initializeFitPlanDatabase(): Promise<void> {
   });
 
   return initialization;
+}
+
+/** Linked demonstrations are shared editorial content, not user-owned data. */
+export async function listPersonalExerciseMedia(): Promise<FitPersonalExerciseMediaRow[]> {
+  return selectRows<FitPersonalExerciseMediaRow>(
+    `SELECT exercise_id, video_url, credit, updated_at
+       FROM fit_personal_exercise_media
+      ORDER BY exercise_id ASC`
+  );
+}
+
+/** Input must be checked against the catalog and trusted video hosts by the route. */
+export async function savePersonalExerciseMedia(
+  exerciseId: string,
+  videoUrl: string,
+  credit: string
+): Promise<void> {
+  if (!videoUrl) {
+    await execute(
+      "DELETE FROM fit_personal_exercise_media WHERE exercise_id = ?",
+      [exerciseId]
+    );
+    return;
+  }
+  await execute(
+    `INSERT INTO fit_personal_exercise_media
+       (exercise_id, video_url, credit, updated_at)
+     VALUES (?, ?, ?, CURRENT_TIMESTAMP(3))
+     ON DUPLICATE KEY UPDATE video_url = VALUES(video_url),
+       credit = VALUES(credit), updated_at = CURRENT_TIMESTAMP(3)`,
+    [exerciseId, videoUrl, credit]
+  );
 }
 
 export async function listFitPlans(): Promise<FitPlanRow[]> {

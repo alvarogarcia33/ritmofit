@@ -4027,3 +4027,38 @@ input:disabled {
     flex: 1 1 130px;
   }
 }
+
+.video-technique-guide {
+  padding: 14px 16px;
+  margin: 14px 0;
+  border: 1px solid #cfe5df;
+  border-radius: 12px;
+  background: #f4faf8;
+}
+.video-technique-guide h3 {
+  margin: 0 0 9px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #176e63;
+}
+.video-technique-guide ol {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+.video-technique-guide li {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #44595b;
+}
+.video-technique-guide strong {
+  color: #225b55;
+}
+.video-technique-guide small {
+  display: block;
+  margin-top: 10px;
+  line-height: 1.5;
+  color: #657d79;
+  font-size: 10px;
+}

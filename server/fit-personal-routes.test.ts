@@ -7,6 +7,8 @@ const store = vi.hoisted(() => ({
   hasFitPlanProgress: vi.fn(),
   currentFitPersonalPlanVersion: vi.fn(),
   listFitPersonalPlanVersions: vi.fn(),
+  listPersonalExerciseMedia: vi.fn(),
+  savePersonalExerciseMedia: vi.fn(),
   saveFitPersonalPlan: vi.fn(),
   updateFitPersonalPlan: vi.fn(),
   findFitPlanEnrollment: vi.fn(),
@@ -126,6 +128,8 @@ beforeEach(() => {
   store.hasFitPlanProgress.mockResolvedValue(false);
   store.currentFitPersonalPlanVersion.mockResolvedValue(1);
   store.listFitPersonalPlanVersions.mockResolvedValue([]);
+  store.listPersonalExerciseMedia.mockResolvedValue([]);
+  store.savePersonalExerciseMedia.mockResolvedValue(undefined);
   store.findFitUserById.mockResolvedValue(user);
   store.listFitPlanProgress.mockResolvedValue([]);
   store.findFitPlanProgress.mockResolvedValue(null);
@@ -159,6 +163,63 @@ describe("Rutas privadas de Plan Personal con almacenamiento mock", () => {
       "tonificar",
     ]);
   });
+  it("expone solo los enlaces editoriales del catálogo a usuarios autenticados", async () => {
+    store.listPersonalExerciseMedia.mockResolvedValue([{
+      exercise_id: "jalon-polea-agarre-v",
+      video_url: "https://www.youtube.com/watch?v=AbCdEfGhI12",
+      credit: "Canal oficial",
+    }]);
+    const result = await harness().invoke("GET", "/personal-exercises/media");
+    expect(result.status).toBe(200);
+    expect(result.data.media).toEqual([{
+      exerciseId: "jalon-polea-agarre-v",
+      videoUrl: "https://www.youtube.com/watch?v=AbCdEfGhI12",
+      credit: "Canal oficial",
+    }]);
+    expect((await harness(null).invoke("GET", "/personal-exercises/media")).status).toBe(401);
+  });
+
+  it("solo administración puede asociar videos que identifican el ejercicio y la fuente", async () => {
+    const endpoint = "/admin/personal-exercises/:exerciseId/media";
+    const valid = {
+      videoUrl: "https://youtu.be/AbCdEfGhI12",
+      credit: "Equipo técnico",
+    };
+    const params = { exerciseId: "jalon-polea-agarre-v" };
+    expect((await harness().invoke("PUT", endpoint, valid, params)).status).toBe(403);
+    expect((await harness(null).invoke("PUT", endpoint, valid, params)).status).toBe(401);
+    expect((await harness({ ...user, role: "admin" }).invoke(
+      "PUT", endpoint, valid, { exerciseId: "inventado" }
+    )).status).toBe(404);
+    const admin = harness({ ...user, role: "admin" });
+    for (const videoUrl of [
+      "http://youtu.be/AbCdEfGhI12",
+      "https://evil.example/AbCdEfGhI12",
+      "https://youtube.com/playlist?list=AbCdEfGhI12",
+      "javascript:alert(1)",
+    ]) {
+      expect((await admin.invoke("PUT", endpoint, { ...valid, videoUrl }, params)).status)
+        .toBe(400);
+    }
+    expect((await admin.invoke(
+      "PUT", endpoint, { ...valid, credit: "" }, params
+    )).status).toBe(400);
+    expect(store.savePersonalExerciseMedia).not.toHaveBeenCalled();
+    const saved = await admin.invoke("PUT", endpoint, valid, params);
+    expect(saved.status).toBe(200);
+    expect(saved.data.media).toEqual({ exerciseId: params.exerciseId, ...valid });
+    expect(store.savePersonalExerciseMedia).toHaveBeenCalledWith(
+      params.exerciseId, valid.videoUrl, valid.credit
+    );
+    const removed = await admin.invoke(
+      "PUT", endpoint, { videoUrl: "", credit: "" }, params
+    );
+    expect(removed.status).toBe(200);
+    expect(store.savePersonalExerciseMedia).toHaveBeenCalledWith(
+      params.exerciseId, "", ""
+    );
+  });
+
   it("siempre permite editar y comunica progreso y edición vigente", async () => {
     expect((await harness().invoke("GET", "/personal-plan")).data).toEqual({
       plan: null,
