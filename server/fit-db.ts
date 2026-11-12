@@ -1,7 +1,7 @@
 import { createPool } from "mysql2/promise";
 import type { Pool, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
-export const FIT_SCHEMA_VERSION = 1;
+export const FIT_SCHEMA_VERSION = 2;
 
 export type FitRole = "user" | "admin";
 export type FitLevel = "beginner" | "intermediate" | "advanced";
@@ -28,6 +28,7 @@ export interface FitProgressRow extends RowDataPacket {
   day_key: string;
   session_level: FitLevel | null;
   completed_sets: string;
+  set_performance: string | unknown[] | null;
   cardio_done: number | boolean;
   warmup_done: number | boolean;
   completed_at: string | Date | null;
@@ -183,6 +184,7 @@ const TABLE_DEFINITIONS: Array<{
         day_key VARCHAR(5) NOT NULL,
         session_level ENUM('beginner', 'intermediate', 'advanced') NULL,
         completed_sets JSON NOT NULL,
+        set_performance JSON NULL,
         cardio_done TINYINT(1) NOT NULL DEFAULT 0,
         warmup_done TINYINT(1) NOT NULL DEFAULT 0,
         completed_at DATETIME(3) NULL,
@@ -199,6 +201,7 @@ const TABLE_DEFINITIONS: Array<{
         definition: "ENUM('beginner', 'intermediate', 'advanced') NULL",
       },
       { name: "completed_sets", definition: "JSON NOT NULL" },
+      { name: "set_performance", definition: "JSON NULL" },
       { name: "cardio_done", definition: "TINYINT(1) NOT NULL DEFAULT 0" },
       { name: "warmup_done", definition: "TINYINT(1) NOT NULL DEFAULT 0" },
       { name: "completed_at", definition: "DATETIME(3) NULL" },
@@ -478,7 +481,7 @@ export async function listFitProgress(
 ): Promise<FitProgressRow[]> {
   return selectRows<FitProgressRow>(
     `
-      SELECT user_id, day_key, session_level, completed_sets, cardio_done, warmup_done, completed_at, updated_at
+      SELECT user_id, day_key, session_level, completed_sets, set_performance, cardio_done, warmup_done, completed_at, updated_at
       FROM fit_progress WHERE user_id = ? ORDER BY day_key ASC
     `,
     [userId]
@@ -491,7 +494,7 @@ export async function findFitProgress(
 ): Promise<FitProgressRow | null> {
   const rows = await selectRows<FitProgressRow>(
     `
-      SELECT user_id, day_key, session_level, completed_sets, cardio_done, warmup_done, completed_at, updated_at
+      SELECT user_id, day_key, session_level, completed_sets, set_performance, cardio_done, warmup_done, completed_at, updated_at
       FROM fit_progress WHERE user_id = ? AND day_key = ? LIMIT 1
     `,
     [userId, dayKey]
@@ -504,6 +507,7 @@ export async function saveFitProgress(
   dayKey: string,
   sessionLevel: FitLevel,
   completedSets: string,
+  setPerformance: string,
   cardioDone: boolean,
   warmupDone: boolean,
   completedAt: Date | null
@@ -511,11 +515,12 @@ export async function saveFitProgress(
   await execute(
     `
       INSERT INTO fit_progress
-        (user_id, day_key, session_level, completed_sets, cardio_done, warmup_done, completed_at, updated_at)
-      VALUES (?, ?, ?, CAST(? AS JSON), ?, ?, ?, CURRENT_TIMESTAMP(3))
+        (user_id, day_key, session_level, completed_sets, set_performance, cardio_done, warmup_done, completed_at, updated_at)
+      VALUES (?, ?, ?, CAST(? AS JSON), CAST(? AS JSON), ?, ?, ?, CURRENT_TIMESTAMP(3))
       ON DUPLICATE KEY UPDATE
         session_level = COALESCE(session_level, VALUES(session_level)),
         completed_sets = VALUES(completed_sets),
+        set_performance = VALUES(set_performance),
         cardio_done = VALUES(cardio_done),
         warmup_done = VALUES(warmup_done),
         completed_at = IF(VALUES(completed_at) IS NULL, NULL, COALESCE(completed_at, VALUES(completed_at))),
@@ -526,6 +531,7 @@ export async function saveFitProgress(
       dayKey,
       sessionLevel,
       completedSets,
+      setPerformance,
       cardioDone ? 1 : 0,
       warmupDone ? 1 : 0,
       completedAt,
