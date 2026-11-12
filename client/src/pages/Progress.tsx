@@ -21,6 +21,7 @@ import {
 } from "recharts";
 import { FitLayout } from "@/components/FitLayout";
 import { EmptyState } from "@/components/FitWidgets";
+import { StrengthInsights } from "@/components/StrengthInsights";
 import { useFit } from "@/contexts/FitContext";
 import {
   api,
@@ -322,6 +323,14 @@ export default function ProgressPage() {
               </div>
             </section>
           </div>
+          <StrengthInsights
+            plan={plan}
+            startDate={enrollment?.startDate ?? user.startDate}
+            progress={progress}
+            archives={plan.isPersonal ? archives : []}
+            archivesLoading={Boolean(plan.isPersonal && archivesLoading)}
+            archivesError={plan.isPersonal ? archivesError : null}
+          />
           <section className="history-card">
             <div className="section-heading">
               <div>
