@@ -263,7 +263,7 @@ export default function Home() {
     if (!hasUnsavedMarks) return;
     const interceptInternalLink = (event: MouseEvent) => {
       if (!(event.target instanceof Element)) return;
-      const link = event.target.closest("a[href]");
+      const link = event.target.closest<HTMLAnchorElement>("a[href]");
       if (!link || link.target === "_blank" || link.hasAttribute("download"))
         return;
       const url = new URL(link.getAttribute("href")!, window.location.href);
