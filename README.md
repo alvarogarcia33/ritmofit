@@ -11,6 +11,7 @@ Repositorio: <https://github.com/alvarogarcia33/ritmofit>
 - **Plan Personal:** una rutina propia por cuenta. Se arma seleccionando ejercicios de un catálogo por grupo muscular y asignándolos a días de lunes a domingo; ahora se puede elegir **4, 8, 12 semanas o duración continua**. En el modo continuo se repite la distribución semanal sin reiniciar el historial.
 - **Entrenamiento y seguimiento:** marcar series, **registrar peso (kg) y repeticiones reales por cada serie**, recuperar las marcas anteriores del mismo ejercicio, usar el reloj de descanso y consultar el historial individual de cada plan.
 - **Recordatorios dentro de la app:** los pendientes se calculan con la fecha de inicio y zona horaria de la cuenta. No se envían emails ni notificaciones push cuando la app está cerrada.
+- **Demostraciones de ejercicios:** el catálogo personal ofrece una guía técnica para sus 74 ejercicios. Los videos externos se muestran solo si un administrador los vinculó a una variante específica. El editor `/admin/demostraciones` permite registrar o retirar videos de YouTube/Vimeo y atribuir su fuente, sin modificar rutinas ni progreso.
 - **Administración:** las cuentas con rol `admin` pueden revisar usuarios, progreso y planes. «Plan Personal» es un filtro por usuario, no un plan público compartido.
 
 ## Guía rápida para entrenar
@@ -24,7 +25,7 @@ Repositorio: <https://github.com/alvarogarcia33/ritmofit>
 
 Las cargas se registran siempre en **kilogramos**, entre 0 y 1000 kg y hasta dos decimales; las repeticiones deben ser enteras entre 1 y 200. Se admite una marca solo de peso o solo de repeticiones. Los historiales anteriores sin estas medidas siguen funcionando: ningún valor se inventa o estima. Las marcas se muestran en el historial de sesiones y quedan incorporadas al archivo de una edición anterior del Plan Personal.
 
-El Plan Personal no inventa videos ni láminas de demostración: muestra indicaciones y señala cuando una referencia no está vinculada. **Se puede editar aun con entrenamientos registrados**: al guardar una versión modificada se archivan atómicamente la rutina anterior y todas sus sesiones (completas y parciales), con las fechas, cantidades y ejercicios originales. La edición inicia un ciclo nuevo con la duración elegida el próximo lunes cuando existía progreso; las sesiones previas se consultan en **Mi progreso → Versiones anteriores**. El progreso activo vuelve a cero solo para esa nueva versión; no se borran los registros históricos. Cada edición sin cambios se ignora; ediciones obsoletas de otra pestaña se rechazan para evitar sobrescrituras.
+El Plan Personal **no inventa videos ni láminas**: los 74 ejercicios muestran instrucciones técnicas y, cuando el administrador revisa y vincula una demostración, ofrecen el reproductor correspondiente. Los enlaces no vienen precargados por defecto: hay que comprobar que cada video corresponde a la variante concreta, respetar atribución y permisos del proveedor. No se descargan ni se alojan archivos de video en la aplicación. **Se puede editar aun con entrenamientos registrados**: al guardar una versión modificada se archivan atómicamente la rutina anterior y todas sus sesiones (completas y parciales), con las fechas, cantidades y ejercicios originales. La edición inicia un ciclo nuevo con la duración elegida el próximo lunes cuando existía progreso; las sesiones previas se consultan en **Mi progreso → Versiones anteriores**. El progreso activo vuelve a cero solo para esa nueva versión; no se borran los registros históricos. Cada edición sin cambios se ignora; ediciones obsoletas de otra pestaña se rechazan para evitar sobrescrituras.
 
 ## Secciones de la aplicación
 
@@ -39,6 +40,7 @@ El Plan Personal no inventa videos ni láminas de demostración: muestra indicac
 | `/ajustes`       | Perfil, fecha, descanso y preferencias de recordatorios.              |
 | `/admin`         | Seguimiento de usuarios, visible solo para una cuenta administradora. |
 | `/admin/planes`  | Gestión del catálogo de planes globales, para administración.         |
+| `/admin/demostraciones` | Gestión de enlaces de video y fuentes de los 74 ejercicios del Plan Personal. |
 
 ## Requisitos
 
@@ -102,6 +104,8 @@ El contenedor usa Node 22 y respeta `PORT`. La ruta de salud sin autenticación 
 ## Base de datos y datos
 
 La persistencia de Fit está en MySQL y se implementa con `mysql2` en `server/fit-db.ts` y `server/fit-plan-db.ts`. Al iniciar, el servidor agrega de manera idempotente las tablas y columnas faltantes y mantiene la versión del esquema; los datos de usuarios no se deben borrar para desplegar una actualización. Entre las tablas están usuarios, sesiones, progreso legado, planes, inscripciones, plan activo, progreso por plan y `fit_personal_plan_versions` (ediciones anteriores de rutinas personales con instantánea de sus sesiones).
+
+La tabla editorial `fit_personal_exercise_media` (schema de planes v5) almacena únicamente enlaces HTTPS de YouTube/Vimeo y su autor o canal. Es compartida, no contiene datos personales ni progreso; los cambios de demostración se reflejan en los ejercicios existentes sin reescribir versiones ni sesiones. Solo un usuario autenticado puede consultarla y solo administración puede editarla. El despliegue requiere ejecutar el inicializador Fit con una base MySQL de prueba antes de producción.
 
 La duración del Plan Personal se guarda dentro del JSON existente del plan, sin agregar tablas ni columnas. Los planes anteriores permanecen en 4 semanas hasta que la persona los edite. **La opción continua no representa una prescripción de entrenamiento ni elimina el descanso:** cada usuario sigue teniendo días libres según su selección. Las vistas de calendario y métricas muestran un período limitado para evitar cálculos infinitos, pero el historial no se elimina.
 
