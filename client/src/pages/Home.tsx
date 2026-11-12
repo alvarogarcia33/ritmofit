@@ -259,6 +259,28 @@ export default function Home() {
     window.addEventListener("beforeunload", beforeUnload);
     return () => window.removeEventListener("beforeunload", beforeUnload);
   }, [hasUnsavedMarks]);
+  useEffect(() => {
+    if (!hasUnsavedMarks) return;
+    const interceptInternalLink = (event: MouseEvent) => {
+      if (!(event.target instanceof Element)) return;
+      const link = event.target.closest("a[href]");
+      if (!link || link.target === "_blank" || link.hasAttribute("download"))
+        return;
+      const url = new URL(link.getAttribute("href")!, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      const current = new URL(window.location.href);
+      if (url.pathname === current.pathname && url.search === current.search)
+        return;
+      if (!window.confirm(
+        "Tenés kilos o repeticiones sin guardar. ¿Salir de este entrenamiento y descartarlos?"
+      )) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    };
+    document.addEventListener("click", interceptInternalLink, true);
+    return () => document.removeEventListener("click", interceptInternalLink, true);
+  }, [hasUnsavedMarks]);
   const changeLevel = async (next: Level) => {
     if (!account) return setGuestLevel(next);
     setSaving(true);
