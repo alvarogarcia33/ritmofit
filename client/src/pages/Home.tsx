@@ -7,6 +7,7 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronUp,
   CircleHelp,
   Clock3,
   Dumbbell,
@@ -23,6 +24,7 @@ import {
   StarCelebration,
   TimerCard,
   VideoModal,
+  type TimerSnapshot,
 } from "@/components/FitWidgets";
 import { useFit } from "@/contexts/FitContext";
 import {
@@ -36,7 +38,12 @@ import {
   type PersonalPlanArchive,
 } from "@/lib/fit";
 import { previousExerciseMarks } from "@/lib/strength";
-import { formatSetMark, type SetPerformance } from "@shared/set-performance";
+import {
+  mergeExerciseMarks,
+  hasUnsavedExerciseMarks,
+  type SetMarkDraft,
+} from "@/lib/quick-sets";
+import { formatSetMark } from "@shared/set-performance";
 import {
   LEVELS,
   STRETCH,
@@ -88,8 +95,21 @@ export default function Home() {
   const [archivedPlans, setArchivedPlans] = useState<PersonalPlanArchive[]>([]);
   const [personalMedia, setPersonalMedia] = useState<PersonalExerciseMedia[]>([]);
   const [markDrafts, setMarkDrafts] = useState<
-    Record<string, { weightKg: string; reps: string }>
+    Record<string, SetMarkDraft>
   >({});
+  const [timerOpen, setTimerOpen] = useState(false);
+  const [timerSnapshot, setTimerSnapshot] = useState<TimerSnapshot>({
+    mode: "rest", remaining: 90, running: false, finished: false,
+  });
+  const onTimerSnapshot = useCallback((snapshot: TimerSnapshot) => {
+    setTimerSnapshot(previous =>
+      previous.mode === snapshot.mode &&
+      previous.remaining === snapshot.remaining &&
+      previous.running === snapshot.running &&
+      previous.finished === snapshot.finished
+        ? previous : snapshot
+    );
+  }, []);
   const [video, setVideo] = useState<Demonstration | null>(null);
   const [celebration, setCelebration] = useState<string | null>(null);
   const [saving, setSaving] = useState(false),
@@ -220,6 +240,47 @@ export default function Home() {
       ? overdueDays(user, progress, plan)
       : [];
   const busy = saving || planLoading || loading;
+  const hasUnsavedMarks = hasUnsavedExerciseMarks(
+    requiredSets,
+    markDrafts,
+    record.setPerformance ?? []
+  );
+  const confirmLeavingMarks = () =>
+    !hasUnsavedMarks ||
+    window.confirm(
+      "Tenés pesos o repeticiones sin guardar. Si cambiás de día o semana, se perderán esos valores. ¿Continuar?"
+    );
+  useEffect(() => {
+    if (!hasUnsavedMarks) return;
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [hasUnsavedMarks]);
+  useEffect(() => {
+    if (!hasUnsavedMarks) return;
+    const interceptInternalLink = (event: MouseEvent) => {
+      if (!(event.target instanceof Element)) return;
+      const link = event.target.closest<HTMLAnchorElement>("a[href]");
+      if (!link || link.target === "_blank" || link.hasAttribute("download"))
+        return;
+      const url = new URL(link.getAttribute("href")!, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      const current = new URL(window.location.href);
+      if (url.pathname === current.pathname && url.search === current.search)
+        return;
+      if (!window.confirm(
+        "Tenés kilos o repeticiones sin guardar. ¿Salir de este entrenamiento y descartarlos?"
+      )) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    };
+    document.addEventListener("click", interceptInternalLink, true);
+    return () => document.removeEventListener("click", interceptInternalLink, true);
+  }, [hasUnsavedMarks]);
   const changeLevel = async (next: Level) => {
     if (!account) return setGuestLevel(next);
     setSaving(true);
@@ -289,40 +350,34 @@ export default function Home() {
     }));
   };
 
-  const saveExerciseMarks = (exercise: Exercise) => {
-    const ids = Array.from(
-      { length: exerciseSets(plan, exercise, level) },
-      (_, index) => `${exercise.id}:${index + 1}`
-    );
-    const previous = (record.setPerformance ?? []).filter(
-      item => !ids.includes(item.setKey)
-    );
-    const next: SetPerformance[] = [...previous];
-    for (const setKey of ids) {
-      const raw = markDrafts[setKey];
-      const weightText = raw?.weightKg.trim() ?? "";
-      const isTimed = Boolean(exercise.seconds || /segundos/i.test(exercise.reps ?? ""));
-      const repsText = isTimed ? "" : (raw?.reps.trim() ?? "");
-      if (!weightText && !repsText) continue;
-      const weightKg = weightText ? Number(weightText) : null;
-      const reps = repsText ? Number(repsText) : null;
-      if (
-        (weightKg !== null &&
-          (!Number.isFinite(weightKg) || weightKg < 0 || weightKg > 1000 ||
-            Math.abs(weightKg * 100 - Math.round(weightKg * 100)) > 0.000001)) ||
-        (reps !== null && (!Number.isSafeInteger(reps) || reps < 1 || reps > 200))
-      ) {
-        toast.error("Usá pesos de 0 a 1000 kg (hasta dos decimales) y repeticiones de 1 a 200.");
-        return;
-      }
-      next.push({ setKey, weightKg, reps });
+  /** The same server request commits the typed marks and the checked set. */
+  const prepareExerciseMarks = (exercise: Exercise) => {
+    try {
+      return mergeExerciseMarks(
+        exercise,
+        exerciseSets(plan, exercise, level),
+        markDrafts,
+        record.setPerformance ?? []
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Los datos de la serie no son válidos."
+      );
+      return null;
     }
+  };
+
+  const saveExerciseMarks = (exercise: Exercise) => {
+    const next = prepareExerciseMarks(exercise);
+    if (!next) return;
     void persist({ setPerformance: next }).then(saved => {
       if (saved) toast.success("Peso y repeticiones guardados.");
     });
   };
 
   const toggleSet = (exercise: Exercise, round: number) => {
+    const nextMarks = prepareExerciseMarks(exercise);
+    if (!nextMarks) return;
     const id = `${exercise.id}:${round}`,
       adding = !record.completedSets.includes(id);
     const next = adding
@@ -333,15 +388,18 @@ export default function Home() {
       (_, i) => `${exercise.id}:${i + 1}`
     ).every(s => next.includes(s));
     void persist(
-      { completedSets: next },
+      { completedSets: next, setPerformance: nextMarks },
       adding
         ? done
           ? "¡Ejercicio cumplido! Sigue a tu ritmo."
-          : `¡Serie ${round} cumplida! Tu esfuerzo suma.`
+          : undefined
         : undefined
     );
   };
+
   const toggleExercise = (exercise: Exercise) => {
+    const nextMarks = prepareExerciseMarks(exercise);
+    if (!nextMarks) return;
     const ids = Array.from(
         { length: exerciseSets(plan, exercise, level) },
         (_, i) => `${exercise.id}:${i + 1}`
@@ -349,6 +407,7 @@ export default function Home() {
       done = ids.every(id => record.completedSets.includes(id));
     void persist(
       {
+        setPerformance: nextMarks,
         completedSets: done
           ? record.completedSets.filter(id => !ids.includes(id))
           : Array.from(new Set([...record.completedSets, ...ids])),
@@ -587,7 +646,9 @@ export default function Home() {
                 aria-label="Seleccionar semana"
                 value={week}
                 onChange={e => {
+                  if (!confirmLeavingMarks()) return;
                   setWeek(Number(e.target.value));
+                  setTimerOpen(false);
                   setTraining(false);
                   setExerciseClock(null);
                 }}
@@ -610,7 +671,9 @@ export default function Home() {
                     className="button secondary"
                     disabled={week <= 1}
                     onClick={() => {
+                      if (!confirmLeavingMarks()) return;
                       setWeek(current => Math.max(1, current - 1));
+                      setTimerOpen(false);
                       setTraining(false);
                     }}
                   >
@@ -621,7 +684,9 @@ export default function Home() {
                     className="button secondary"
                     disabled={week >= MAX_TRAINING_WEEK}
                     onClick={() => {
+                      if (!confirmLeavingMarks()) return;
                       setWeek(current => Math.min(MAX_TRAINING_WEEK, current + 1));
+                      setTimerOpen(false);
                       setTraining(false);
                     }}
                   >
@@ -642,7 +707,9 @@ export default function Home() {
                       key={label}
                       className={`day-chip ${day === index + 1 ? "active" : ""} ${done ? "done" : ""} ${!target ? "rest-day" : ""}`}
                       onClick={() => {
+                        if (!confirmLeavingMarks()) return;
                         setDay(index + 1);
+                        setTimerOpen(false);
                         setTraining(false);
                         setExerciseClock(null);
                       }}
@@ -917,7 +984,7 @@ export default function Home() {
                                     key={id}
                                     className={`set-button ${record.completedSets.includes(id) ? "checked" : ""}`}
                                     disabled={busy}
-                                    aria-label={`${record.completedSets.includes(id) ? "Desmarcar" : "Completar"} serie ${i + 1} de ${e.name}`}
+                                    aria-label={`${record.completedSets.includes(id) ? "Desmarcar" : "Completar"} serie ${i + 1} de ${e.name} y guardar los pesos y repeticiones ingresados`}
                                     aria-pressed={record.completedSets.includes(
                                       id
                                     )}
@@ -946,9 +1013,12 @@ export default function Home() {
                                   : "Marcar ejercicio"}
                               </button>
                             </div>
-                            <div className="exercise-measurements">
-                              <div className="exercise-measurements-heading">
+                            <details className="exercise-measurements">
+                              <summary className="exercise-measurements-heading">
                                 <strong>REGISTRÁ TU CARGA REAL</strong>
+                                <span className="exercise-mark-status">
+                                  {ids.filter(id => record.setPerformance?.some(mark => mark.setKey === id)).length} de {ids.length} series con datos
+                                </span>
                                 {previousMarks && (
                                   <span className="exercise-last-mark">
                                     Última vez ({dateLabel(previousMarks.date, true)}):{" "}
@@ -957,7 +1027,7 @@ export default function Home() {
                                       .join(" · ")}
                                   </span>
                                 )}
-                              </div>
+                              </summary>
                               <div className="exercise-measurements-grid">
                                 {ids.map((setKey, index) => {
                                   const mark = markDrafts[setKey];
@@ -1007,7 +1077,7 @@ export default function Home() {
                                 })}
                               </div>
                               <div className="exercise-measurements-footer">
-                                <small>Opcional: guardar marcas no completa automáticamente las series.</small>
+                                <small>Al tocar el número de una serie se guardan sus kilos, repeticiones y cumplimiento juntos. Este botón guarda marcas sin completar series.</small>
                                 <button
                                   type="button"
                                   className="button secondary exercise-mark-save"
@@ -1017,7 +1087,7 @@ export default function Home() {
                                   Guardar marcas
                                 </button>
                               </div>
-                            </div>
+                            </details>
                           </article>
                         );
                       })}
@@ -1170,11 +1240,44 @@ export default function Home() {
               </p>
             </section>
           )}
-          <div id="session-clock">
+          {!isRest && (
+            <button
+              type="button"
+              className={`mobile-timer-toggle ${timerSnapshot.running ? "is-running" : ""}`}
+              aria-controls="session-clock"
+              aria-expanded={timerOpen}
+              onClick={() => setTimerOpen(open => !open)}
+            >
+              <Clock3 size={18} aria-hidden="true" />
+              <span>
+                {timerSnapshot.mode === "cardio"
+                  ? "Cardio"
+                  : timerSnapshot.mode === "exercise" ? "Ejercicio" : "Descanso"}
+                {timerSnapshot.running ? " · en curso" : timerSnapshot.finished ? " · terminado" : ""}
+              </span>
+              <strong className="mobile-timer-count">
+                {String(Math.floor(timerSnapshot.remaining / 60)).padStart(2, "0")}:
+                {String(timerSnapshot.remaining % 60).padStart(2, "0")}
+              </strong>
+              {timerOpen ? <ChevronDown size={17} /> : <ChevronUp size={17} />}
+            </button>
+          )}
+          <div
+            id="session-clock"
+            className={`mobile-timer-panel ${timerOpen ? "is-open" : ""} ${isRest ? "is-rest" : ""}`}
+          >
+            <div className="mobile-timer-panel-heading">
+              <strong>Temporizador de entrenamiento</strong>
+              <button type="button" onClick={() => setTimerOpen(false)}
+                aria-label="Cerrar temporizador">
+                <ChevronDown size={20} />
+              </button>
+            </div>
             <TimerCard
               key={`${planId}-${key}`}
               restSeconds={restSeconds}
               cardioMinutes={config.cardioMinutes}
+              onSnapshot={onTimerSnapshot}
               exerciseSeconds={exerciseClock?.seconds}
               exerciseLabel={exerciseClock?.label}
               onCardioComplete={() => {
