@@ -24,6 +24,22 @@ import { EmptyState } from "@/components/FitWidgets";
 import { useFit } from "@/contexts/FitContext";
 import { api, dateLabel, dayDate, type PersonalPlanArchive } from "@/lib/fit";
 import { planDays, planTotalSessions } from "@shared/programs";
+import { formatSetMark, readSetPerformance, setKeyExercise } from "@shared/set-performance";
+import type { RoutineDay } from "@shared/routine";
+import type { Progress } from "@/lib/fit";
+
+function recordedMarksLabel(record: Progress, routine: RoutineDay | undefined): string {
+  return readSetPerformance(record.setPerformance)
+    .map(mark => {
+      const exerciseId = setKeyExercise(mark.setKey);
+      const exerciseName =
+        routine?.exercises.find(exercise => exercise.id === exerciseId)?.name ??
+        exerciseId;
+      const series = mark.setKey.slice(mark.setKey.lastIndexOf(":") + 1);
+      return `${exerciseName} · serie ${series}: ${formatSetMark(mark)}`;
+    })
+    .join(" | ");
+}
 
 export default function ProgressPage() {
   const { planUser: user, loading, planLoading, progress, plan } = useFit();
@@ -326,6 +342,11 @@ export default function ProgressPage() {
                           Semana {week} ·{" "}
                           {dateLabel(dayDate(user.startDate, week, day), true)}
                         </span>
+                        {record.setPerformance?.length ? (
+                          <small className="history-mark-summary">
+                            {recordedMarksLabel(record, routine)}
+                          </small>
+                        ) : null}
                       </div>
                       <span className="history-series">
                         {record.completedSets.length} series
@@ -446,6 +467,11 @@ export default function ProgressPage() {
                                           {" · "}
                                           {originalDay?.exercises.map(item => item.name).join(", ")}
                                         </span>
+                                        {record.setPerformance?.length ? (
+                                          <small className="history-mark-summary">
+                                            {recordedMarksLabel(record, originalDay)}
+                                          </small>
+                                        ) : null}
                                       </div>
                                       <span className="history-series">
                                         {record.completedSets.length} series ·{" "}
