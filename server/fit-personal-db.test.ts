@@ -82,7 +82,7 @@ describe("Persistencia privada de Plan Personal con DB simulada", () => {
         /DELETE|DROP TABLE|UPDATE fit_plan_progress|UPDATE fit_plans/.test(sql)
       )
     ).toBe(false);
-    expect(mock.execute.mock.calls.at(-1)?.[1]).toEqual([3]);
+    expect(mock.execute.mock.calls.at(-1)?.[1]).toEqual([4]);
   });
 
   it("filtra globales con owner NULL y rutinas privadas por owner e id", async () => {
@@ -272,6 +272,7 @@ describe("Persistencia privada de Plan Personal con DB simulada", () => {
     sessionLevel: "beginner" as const,
     requiredSets: '["pp-d7-curl-barra:1"]',
     completedSets: "[]",
+    setPerformance: '[]',
     cardioDone: false,
     warmupDone: true,
     completedAt: null,
