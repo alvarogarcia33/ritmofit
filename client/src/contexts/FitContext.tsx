@@ -56,7 +56,7 @@ interface FitContextValue {
   updateProfile: (body: unknown) => Promise<void>;
   writeProgress: (
     key: string,
-    body: Pick<Progress, "completedSets" | "cardioDone" | "warmupDone">
+    body: Pick<Progress, "completedSets" | "cardioDone" | "warmupDone" | "setPerformance">
   ) => Promise<Progress>;
 }
 const Context = createContext<FitContextValue | null>(null);
@@ -355,7 +355,7 @@ export function FitProvider({ children }: { children: ReactNode }) {
   };
   const writeProgress = async (
     key: string,
-    body: Pick<Progress, "completedSets" | "cardioDone" | "warmupDone">
+    body: Pick<Progress, "completedSets" | "cardioDone" | "warmupDone" | "setPerformance">
   ) => {
     if (planLoading || !progressReady)
       throw new Error(
