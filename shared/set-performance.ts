@@ -59,7 +59,7 @@ export function validateSetPerformance(
         !Number.isFinite(weightKg) ||
         weightKg < 0 ||
         weightKg > 1000 ||
-        Math.round(weightKg * 100) !== weightKg * 100)
+        Math.abs(Math.round(weightKg * 100) - weightKg * 100) > 0.000001)
     )
       throw new Error("El peso debe estar entre 0 y 1000 kg, con hasta dos decimales.");
     if (
