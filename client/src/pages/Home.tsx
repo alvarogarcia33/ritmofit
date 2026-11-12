@@ -7,6 +7,7 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronUp,
   CircleHelp,
   Clock3,
   Dumbbell,
@@ -23,6 +24,7 @@ import {
   StarCelebration,
   TimerCard,
   VideoModal,
+  type TimerSnapshot,
 } from "@/components/FitWidgets";
 import { useFit } from "@/contexts/FitContext";
 import {
@@ -36,7 +38,12 @@ import {
   type PersonalPlanArchive,
 } from "@/lib/fit";
 import { previousExerciseMarks } from "@/lib/strength";
-import { formatSetMark, type SetPerformance } from "@shared/set-performance";
+import {
+  mergeExerciseMarks,
+  hasUnsavedExerciseMarks,
+  type SetMarkDraft,
+} from "@/lib/quick-sets";
+import { formatSetMark } from "@shared/set-performance";
 import {
   LEVELS,
   STRETCH,
@@ -88,8 +95,21 @@ export default function Home() {
   const [archivedPlans, setArchivedPlans] = useState<PersonalPlanArchive[]>([]);
   const [personalMedia, setPersonalMedia] = useState<PersonalExerciseMedia[]>([]);
   const [markDrafts, setMarkDrafts] = useState<
-    Record<string, { weightKg: string; reps: string }>
+    Record<string, SetMarkDraft>
   >({});
+  const [timerOpen, setTimerOpen] = useState(false);
+  const [timerSnapshot, setTimerSnapshot] = useState<TimerSnapshot>({
+    mode: "rest", remaining: 90, running: false, finished: false,
+  });
+  const onTimerSnapshot = useCallback((snapshot: TimerSnapshot) => {
+    setTimerSnapshot(previous =>
+      previous.mode === snapshot.mode &&
+      previous.remaining === snapshot.remaining &&
+      previous.running === snapshot.running &&
+      previous.finished === snapshot.finished
+        ? previous : snapshot
+    );
+  }, []);
   const [video, setVideo] = useState<Demonstration | null>(null);
   const [celebration, setCelebration] = useState<string | null>(null);
   const [saving, setSaving] = useState(false),
