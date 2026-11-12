@@ -61,7 +61,7 @@ import { withPersonalDemo, type PersonalExerciseMedia } from "@shared/personal-e
 
 type Demonstration = Pick<
   Exercise,
-  "name" | "videoUrl" | "tips" | "videoAlternative" | "sourceImage" | "demoCredit"
+  "name" | "videoUrl" | "tips" | "videoAlternative" | "sourceImage" | "demoCredit" | "demoGuide"
 >;
 export default function Home() {
   const {
