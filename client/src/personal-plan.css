@@ -1029,3 +1029,23 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Guía técnica accesible incluso cuando falta un video validado. */
+.pp-demo-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  margin-top: 8px;
+  padding: 5px 8px;
+  border: 1px solid #b4dcd3;
+  border-radius: 8px;
+  background: #eff9f5;
+  color: #176e63;
+  font: 700 11px "Manrope", sans-serif;
+  cursor: pointer;
+}
+.pp-demo-link:hover, .pp-demo-link:focus-visible {
+  border-color: #238b83;
+  background: #dff4ec;
+}
