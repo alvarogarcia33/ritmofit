@@ -82,7 +82,7 @@ export default function PersonalPlanBuilder() {
   const [saving, setSaving] = useState(false);
   const [media, setMedia] = useState<PersonalExerciseMedia[]>([]);
   const [preview, setPreview] = useState<Pick<
-    Exercise, "name" | "videoUrl" | "tips" | "videoAlternative" | "sourceImage" | "demoCredit"
+    Exercise, "name" | "videoUrl" | "tips" | "videoAlternative" | "sourceImage" | "demoCredit" | "demoGuide"
   > | null>(null);
 
   useEffect(() => {
