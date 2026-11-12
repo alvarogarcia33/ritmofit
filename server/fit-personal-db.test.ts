@@ -30,6 +30,8 @@ import {
   FitPersonalPlanConflictError,
   listFitPersonalPlanVersions,
   currentFitPersonalPlanVersion,
+  listPersonalExerciseMedia,
+  savePersonalExerciseMedia,
 } from "./fit-plan-db";
 import { buildPersonalPlan } from "../shared/exercise-library";
 const plan = buildPersonalPlan(
@@ -83,6 +85,39 @@ describe("Persistencia privada de Plan Personal con DB simulada", () => {
       )
     ).toBe(false);
     expect(mock.execute.mock.calls.at(-1)?.[1]).toEqual([5]);
+  });
+
+  it("agrega la tabla editorial de videos sin modificar rutinas ni progreso", async () => {
+    mock.execute.mockImplementation(async (sql: string, params?: string[]) => {
+      if (sql.includes("information_schema.COLUMNS")) return [[{ present: 1 }]];
+      if (sql.includes("information_schema.STATISTICS")) return [[{ present: 1 }]];
+      return [{ affectedRows: 1 }];
+    });
+    await initializeFitPlanDatabase();
+    const sql = mock.execute.mock.calls.map(call => String(call[0]));
+    expect(sql.some(command => command.includes(
+      "CREATE TABLE IF NOT EXISTS fit_personal_exercise_media"
+    ))).toBe(true);
+    expect(sql.some(command => /DROP TABLE|DELETE FROM fit_plans|DELETE FROM fit_plan_progress/.test(command)))
+      .toBe(false);
+  });
+
+  it("consulta, guarda y retira enlaces de video sin editar el plan de usuario", async () => {
+    mock.execute.mockResolvedValueOnce([[{
+      exercise_id: "jalon-polea-agarre-v",
+      video_url: "https://www.youtube.com/watch?v=AbCdEfGhI12",
+      credit: "Canal de entrenamiento",
+    }]]);
+    expect(await listPersonalExerciseMedia()).toHaveLength(1);
+    await savePersonalExerciseMedia("jalon-polea-agarre-v", "https://vimeo.com/123456789", "Autor");
+    await savePersonalExerciseMedia("jalon-polea-agarre-v", "", "");
+    const calls = mock.execute.mock.calls;
+    expect(calls[1][0]).toContain("INSERT INTO fit_personal_exercise_media");
+    expect(calls[1][1]).toEqual(["jalon-polea-agarre-v", "https://vimeo.com/123456789", "Autor"]);
+    expect(calls[2][0]).toContain("DELETE FROM fit_personal_exercise_media");
+    expect(calls[2][1]).toEqual(["jalon-polea-agarre-v"]);
+    expect(calls.some(([sql]) => /UPDATE fit_plans|DELETE FROM fit_plan_progress/.test(String(sql))))
+      .toBe(false);
   });
 
   it("filtra globales con owner NULL y rutinas privadas por owner e id", async () => {
