@@ -54,7 +54,7 @@ describe("Estadísticas de fuerza basadas en registros reales", () => {
     expect(result.exercises[0].sessionsWithMarks).toBe(1);
     expect(result.weeklyVolume).toEqual([{
       monday: "2026-11-02",
-      label: "Desde 02/11",
+      label: "02/11/26",
       volumeKg: 930,
       measuredSets: 2,
     }]);
