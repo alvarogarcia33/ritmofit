@@ -13,7 +13,7 @@ export type PreviousExerciseMarks = {
 };
 
 function scheduledDate(startDate: string, dayKey: string): string | null {
-  const match = /^w(\d{1,2})-d([1-7])$/.exec(dayKey);
+  const match = /^w([1-9]\d{0,3})-d([1-7])$/.exec(dayKey);
   if (!match || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return null;
   return dayDate(startDate, Number(match[1]), Number(match[2]));
 }
