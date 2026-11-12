@@ -464,7 +464,8 @@ export function buildPersonalPlan(
     throw new PersonalPlanInputError(
       "Agrega ejercicios a por lo menos un día de la semana."
     );
-  const requestedDuration = value.duration ?? PERSONAL_PLAN_WEEKS;
+  const requestedDuration =
+    value.duration === undefined ? PERSONAL_PLAN_WEEKS : value.duration;
   if (
     requestedDuration !== "continuous" &&
     !PERSONAL_PLAN_DURATIONS.some(weeks => weeks === requestedDuration)
