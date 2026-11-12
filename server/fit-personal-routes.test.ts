@@ -77,6 +77,7 @@ function harness(account: unknown = user) {
     toPublicProgress: row => row as never,
     sanitizeProgress: () => ({
       completedSets: [],
+      setPerformance: [],
       cardioDone: false,
       warmupDone: false,
       completedAt: null,
