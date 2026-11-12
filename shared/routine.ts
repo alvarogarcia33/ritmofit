@@ -44,6 +44,8 @@ export type Exercise = {
   thumbnail: string;
   block: number;
   tips: string;
+  /** Verified public source linked from the exercise editor, not part of a saved plan. */
+  demoCredit?: string;
   videoAlternative?: VideoAlternative;
   sets?: number;
   reps?: string;
