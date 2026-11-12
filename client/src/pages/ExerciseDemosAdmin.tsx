@@ -30,7 +30,7 @@ export default function ExerciseDemosAdmin() {
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<Pick<
-    Exercise, "name" | "videoUrl" | "tips" | "videoAlternative" | "sourceImage" | "demoCredit"
+    Exercise, "name" | "videoUrl" | "tips" | "videoAlternative" | "sourceImage" | "demoCredit" | "demoGuide"
   > | null>(null);
 
   const load = useCallback(async () => {
