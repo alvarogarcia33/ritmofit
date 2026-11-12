@@ -991,7 +991,7 @@ export default function Home() {
                               <summary className="exercise-measurements-heading">
                                 <strong>REGISTRÁ TU CARGA REAL</strong>
                                 <span className="exercise-mark-status">
-                                  ${ids.filter(id => record.setPerformance?.some(mark => mark.setKey === id)).length} de ${ids.length} series con datos
+                                  {ids.filter(id => record.setPerformance?.some(mark => mark.setKey === id)).length} de {ids.length} series con datos
                                 </span>
                                 {previousMarks && (
                                   <span className="exercise-last-mark">
