@@ -67,8 +67,10 @@ export function StrengthInsights({
   );
   const selected = analytics.exercises.find(exercise => exercise.id === selectedId)
     ?? analytics.exercises[0];
+  // Keep the chart responsive on long-running plans; the summary covers all history.
   const points = (selected?.timeline ?? [])
     .filter(item => item[metric] !== null)
+    .slice(-24)
     .map(item => ({
       ...item,
       label: shortDate(item.date),
@@ -147,7 +149,7 @@ export function StrengthInsights({
                   <div className="strength-card-header">
                     <div>
                       <h3 id="strength-exercise-title">Evolución por ejercicio</h3>
-                      <p>Compará el mismo movimiento, incluso entre versiones del plan.</p>
+                      <p>Últimas 24 fechas con medidas del mismo ejercicio, incluso entre versiones.</p>
                     </div>
                   </div>
 
@@ -261,6 +263,44 @@ export function StrengthInsights({
                         ? "Este ejercicio todavía no tiene series completadas con peso registrado."
                         : "Para calcular volumen necesitás guardar tanto el peso como las repeticiones reales."}
                     </p>
+                  )}
+                  {selected && selected.timeline.length > 0 && (
+                    <details className="strength-record-table">
+                      <summary>
+                        Ver valores registrados por fecha
+                        {" "}({Math.min(12, selected.timeline.length)} más recientes)
+                      </summary>
+                      <div className="strength-table-scroll">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th scope="col">Fecha</th>
+                              <th scope="col">Peso máx. (kg)</th>
+                              <th scope="col">Volumen (kg × reps)</th>
+                              <th scope="col">Series medidas</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[...selected.timeline].slice(-12).reverse().map(row => (
+                              <tr key={row.date}>
+                                <th scope="row">{readableDate(row.date)}</th>
+                                <td>
+                                  {row.weightKg === null
+                                    ? "Sin dato"
+                                    : formatStrengthNumber(row.weightKg)}
+                                </td>
+                                <td>
+                                  {row.volumeKg === null
+                                    ? "Sin dato"
+                                    : formatStrengthNumber(row.volumeKg)}
+                                </td>
+                                <td>{row.completedMeasuredSets}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </details>
                   )}
                   {selected && (
                     <p className="strength-chart-footnote">
