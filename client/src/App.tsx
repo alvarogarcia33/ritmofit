@@ -13,6 +13,7 @@ const Progress = lazy(() => import("./pages/Progress"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Admin = lazy(() => import("./pages/Admin"));
 const PlanAdmin = lazy(() => import("./pages/PlanAdmin"));
+const ExerciseDemosAdmin = lazy(() => import("./pages/ExerciseDemosAdmin"));
 const PersonalPlanBuilder = lazy(() => import("./pages/PersonalPlanBuilder"));
 
 function InitialPage() {
@@ -145,6 +146,14 @@ export default function App() {
               component={() => (
                 <LoginRequired>
                   <Admin />
+                </LoginRequired>
+              )}
+            />
+            <Route
+              path="/admin/demostraciones"
+              component={() => (
+                <LoginRequired>
+                  <ExerciseDemosAdmin />
                 </LoginRequired>
               )}
             />
