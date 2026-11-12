@@ -626,6 +626,7 @@ export default function Home() {
                 onChange={e => {
                   if (!confirmLeavingMarks()) return;
                   setWeek(Number(e.target.value));
+                  setTimerOpen(false);
                   setTraining(false);
                   setExerciseClock(null);
                 }}
@@ -650,6 +651,7 @@ export default function Home() {
                     onClick={() => {
                       if (!confirmLeavingMarks()) return;
                       setWeek(current => Math.max(1, current - 1));
+                      setTimerOpen(false);
                       setTraining(false);
                     }}
                   >
@@ -662,6 +664,7 @@ export default function Home() {
                     onClick={() => {
                       if (!confirmLeavingMarks()) return;
                       setWeek(current => Math.min(MAX_TRAINING_WEEK, current + 1));
+                      setTimerOpen(false);
                       setTraining(false);
                     }}
                   >
@@ -684,6 +687,7 @@ export default function Home() {
                       onClick={() => {
                         if (!confirmLeavingMarks()) return;
                         setDay(index + 1);
+                        setTimerOpen(false);
                         setTraining(false);
                         setExerciseClock(null);
                       }}
@@ -1214,11 +1218,44 @@ export default function Home() {
               </p>
             </section>
           )}
-          <div id="session-clock">
+          {!isRest && (
+            <button
+              type="button"
+              className={`mobile-timer-toggle ${timerSnapshot.running ? "is-running" : ""}`}
+              aria-controls="session-clock"
+              aria-expanded={timerOpen}
+              onClick={() => setTimerOpen(open => !open)}
+            >
+              <Clock3 size={18} aria-hidden="true" />
+              <span>
+                {timerSnapshot.mode === "cardio"
+                  ? "Cardio"
+                  : timerSnapshot.mode === "exercise" ? "Ejercicio" : "Descanso"}
+                {timerSnapshot.running ? " · en curso" : timerSnapshot.finished ? " · terminado" : ""}
+              </span>
+              <strong className="mobile-timer-count">
+                {String(Math.floor(timerSnapshot.remaining / 60)).padStart(2, "0")}:
+                {String(timerSnapshot.remaining % 60).padStart(2, "0")}
+              </strong>
+              {timerOpen ? <ChevronDown size={17} /> : <ChevronUp size={17} />}
+            </button>
+          )}
+          <div
+            id="session-clock"
+            className={`mobile-timer-panel ${timerOpen ? "is-open" : ""} ${isRest ? "is-rest" : ""}`}
+          >
+            <div className="mobile-timer-panel-heading">
+              <strong>Temporizador de entrenamiento</strong>
+              <button type="button" onClick={() => setTimerOpen(false)}
+                aria-label="Cerrar temporizador">
+                <ChevronDown size={20} />
+              </button>
+            </div>
             <TimerCard
               key={`${planId}-${key}`}
               restSeconds={restSeconds}
               cardioMinutes={config.cardioMinutes}
+              onSnapshot={onTimerSnapshot}
               exerciseSeconds={exerciseClock?.seconds}
               exerciseLabel={exerciseClock?.label}
               onCardioComplete={() => {
