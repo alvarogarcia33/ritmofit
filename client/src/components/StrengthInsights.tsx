@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
+import "../strength-insights.css";
 import {
   Activity,
   BarChart3,
