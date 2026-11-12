@@ -57,6 +57,7 @@ import {
 } from "@shared/programs";
 import { PERSONAL_PLAN_ID_PREFIX } from "@shared/exercise-library";
 import { VIDEO_ALTERNATIVES } from "@shared/video-alternatives";
+import { withPersonalDemo, type PersonalExerciseMedia } from "@shared/personal-exercise-media";
 
 type Demonstration = Pick<
   Exercise,
@@ -85,6 +86,7 @@ export default function Home() {
     [day, setDay] = useState(1);
   const [guestLevel, setGuestLevel] = useState<Level>("beginner");
   const [archivedPlans, setArchivedPlans] = useState<PersonalPlanArchive[]>([]);
+  const [personalMedia, setPersonalMedia] = useState<PersonalExerciseMedia[]>([]);
   const [markDrafts, setMarkDrafts] = useState<
     Record<string, { weightKg: string; reps: string }>
   >({});
@@ -124,7 +126,7 @@ export default function Home() {
       planId === "adelgazar"
         ? overrides.find(o => o.exerciseId === e.id)
         : undefined;
-    return {
+    const exercise = {
       ...e,
       ...(override ?? {}),
       videoAlternative:
@@ -134,6 +136,9 @@ export default function Home() {
             : (VIDEO_ALTERNATIVES[e.name] ?? e.videoAlternative)
           : e.videoAlternative,
     };
+    return isPersonalPlan
+      ? withPersonalDemo(exercise, personalMedia)
+      : exercise;
   });
   const record: Progress = savedRecord ?? {
     dayKey: key,
@@ -154,6 +159,18 @@ export default function Home() {
     }
     setMarkDrafts(next);
   }, [planId, key, planLoading, loading]);
+
+  useEffect(() => {
+    if (!account || !isPersonalPlan) {
+      setPersonalMedia([]);
+      return;
+    }
+    let active = true;
+    void api<{ media: PersonalExerciseMedia[] }>("/personal-exercises/media")
+      .then(data => { if (active) setPersonalMedia(data.media); })
+      .catch(() => { if (active) setPersonalMedia([]); });
+    return () => { active = false; };
+  }, [account?.id, isPersonalPlan]);
 
   useEffect(() => {
     if (!account || !isPersonalPlan) {
@@ -823,82 +840,54 @@ export default function Home() {
                             className={`exercise-row ${done ? "completed" : ""} ${plan.mode === "straight" ? "illustrated-exercise" : ""}`}
                             key={e.id}
                           >
-                            {isPersonalPlan ? (
-                              <div
-                                className="exercise-thumbnail exercise-thumbnail-empty"
-                                aria-hidden="true"
-                              >
-                                <Dumbbell size={27} strokeWidth={1.6} />
-                              </div>
-                            ) : (
-                              <button
-                                className="exercise-thumbnail"
-                                aria-label={`Ver cómo hacer ${e.name}`}
-                                onClick={() => setVideo(e)}
-                              >
-                                {e.thumbnail?.trim() ? (
-                                  <img
-                                    src={e.thumbnail}
-                                    alt={e.name}
-                                    loading="lazy"
-                                  />
-                                ) : (
-                                  <div
-                                    className="exercise-thumbnail-placeholder"
-                                    aria-hidden="true"
-                                  >
-                                    <Dumbbell size={24} strokeWidth={1.6} />
-                                  </div>
-                                )}
-                                <span>
-                                  {e.videoUrl || e.videoAlternative ? (
-                                    <Play size={14} fill="currentColor" />
-                                  ) : e.sourceImage ? (
-                                    <ImageIcon size={16} />
-                                  ) : (
-                                    <Dumbbell size={15} />
-                                  )}
-                                </span>
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              className="exercise-thumbnail"
+                              aria-label={`Ver ${e.videoUrl ? "demostración" : "guía técnica"} de ${e.name}`}
+                              onClick={() => setVideo(e)}
+                            >
+                              {e.thumbnail?.trim() ? (
+                                <img src={e.thumbnail} alt="" loading="lazy"/>
+                              ) : (
+                                <div className="exercise-thumbnail-placeholder" aria-hidden="true">
+                                  <Dumbbell size={24} strokeWidth={1.6} />
+                                </div>
+                              )}
+                              <span>
+                                {e.videoUrl || e.videoAlternative
+                                  ? <Play size={14} fill="currentColor" />
+                                  : e.sourceImage
+                                    ? <ImageIcon size={16}/>
+                                    : <Dumbbell size={15}/>}
+                              </span>
+                            </button>
                             <div className="exercise-copy">
                               <span className="exercise-order">
                                 EJERCICIO {String(index + 1).padStart(2, "0")}
                               </span>
-                              {isPersonalPlan ? (
-                                <span className="exercise-name">{e.name}</span>
-                              ) : (
-                                <button
-                                  className="exercise-name"
-                                  onClick={() => setVideo(e)}
-                                >
-                                  {e.name}
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                className="exercise-name"
+                                onClick={() => setVideo(e)}
+                              >
+                                {e.name}
+                              </button>
                               <span className="exercise-reps">{reps}</span>
                               {plan.mode === "straight" && (
                                 <small className="exercise-source-tip">
                                   {e.tips}
                                 </small>
                               )}
-                              {isPersonalPlan ? (
-                                <span className="exercise-no-demo">
-                                  <Dumbbell size={13} aria-hidden="true" />
-                                  Sin demostración vinculada
-                                </span>
-                              ) : (
-                                <button
-                                  className="exercise-video-link"
-                                  onClick={() => setVideo(e)}
-                                >
-                                  {e.videoUrl
-                                    ? "Ver demostración"
-                                    : plan.mode === "straight"
-                                      ? "Ver referencia"
-                                      : "Ver técnica"}
-                                  <ArrowRight size={11} />
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                className="exercise-video-link"
+                                onClick={() => setVideo(e)}
+                              >
+                                {e.videoUrl
+                                  ? "Ver demostración"
+                                  : e.sourceImage ? "Ver referencia" : "Ver guía técnica"}
+                                <ArrowRight size={11} />
+                              </button>
                               {e.seconds && (
                                 <button
                                   className="text-link exercise-time-button"
