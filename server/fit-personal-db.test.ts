@@ -82,7 +82,7 @@ describe("Persistencia privada de Plan Personal con DB simulada", () => {
         /DELETE|DROP TABLE|UPDATE fit_plan_progress|UPDATE fit_plans/.test(sql)
       )
     ).toBe(false);
-    expect(mock.execute.mock.calls.at(-1)?.[1]).toEqual([3]);
+    expect(mock.execute.mock.calls.at(-1)?.[1]).toEqual([4]);
   });
 
   it("filtra globales con owner NULL y rutinas privadas por owner e id", async () => {
@@ -190,6 +190,7 @@ describe("Persistencia privada de Plan Personal con DB simulada", () => {
         user_id: 42, plan_id: plan.id, day_key: "w1-d7",
         session_level: "beginner", required_sets: '["pp-d7-curl-barra:1"]',
         completed_sets: '["pp-d7-curl-barra:1"]',
+        set_performance: '[{"setKey":"pp-d7-curl-barra:1","weightKg":30,"reps":12}]',
         warmup_done: 1, cardio_done: 0,
         completed_at: "2026-11-22T15:00:00Z",
         updated_at: "2026-11-22T15:00:00Z",
@@ -214,6 +215,8 @@ describe("Persistencia privada de Plan Personal con DB simulada", () => {
       42, plan.id, 3, JSON.stringify(plan),
       JSON.stringify(previousProgress), "2026-11-16",
     ]);
+    expect(JSON.parse(calls[archiveIndex][1][4])[0].set_performance)
+      .toContain('"weightKg":30');
     expect(calls[restartIndex][1]).toEqual(["2026-11-23", 42, plan.id]);
     expect(mock.connection.commit).toHaveBeenCalledOnce();
   });
@@ -272,6 +275,7 @@ describe("Persistencia privada de Plan Personal con DB simulada", () => {
     sessionLevel: "beginner" as const,
     requiredSets: '["pp-d7-curl-barra:1"]',
     completedSets: "[]",
+    setPerformance: '[]',
     cardioDone: false,
     warmupDone: true,
     completedAt: null,

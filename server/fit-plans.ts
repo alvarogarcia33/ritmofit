@@ -60,6 +60,11 @@ import {
   type FitUserRow,
 } from "./fit-db";
 import type { PublicFitProgress, PublicFitUser } from "./fit";
+import {
+  readSetPerformance,
+  validateSetPerformance,
+  type SetPerformance,
+} from "../shared/set-performance";
 
 export class PlanValidationError extends Error {
   readonly status = 400;
@@ -88,6 +93,7 @@ type FitPlanRouteDeps = {
     value: unknown
   ) => {
     completedSets: string[];
+    setPerformance: SetPerformance[];
     cardioDone: boolean;
     warmupDone: boolean;
     completedAt: Date | null;
@@ -712,6 +718,7 @@ function toPublicPlanProgress(
     dayKey: row.day_key,
     level: row.session_level ?? fallbackLevel,
     completedSets: [...new Set(parseJsonStrings(row.completed_sets))],
+    setPerformance: readSetPerformance(row.set_performance),
     cardioDone: Boolean(row.cardio_done),
     warmupDone: Boolean(row.warmup_done),
     completedAt: row.completed_at === null ? null : dateToIso(row.completed_at),
@@ -758,10 +765,12 @@ function sanitizePlanProgress(
   day: number,
   levelValue: FitLevel,
   value: unknown,
-  fail: FitPlanRouteDeps["fail"]
+  fail: FitPlanRouteDeps["fail"],
+  previousPerformance: SetPerformance[] = []
 ): {
   completedSets: string[];
   requiredSets: string[];
+  setPerformance: SetPerformance[];
   cardioDone: boolean;
   warmupDone: boolean;
   completedAt: Date | null;
@@ -785,6 +794,23 @@ function sanitizePlanProgress(
     incoming.add(item);
   }
   const completedSets = required.filter(item => incoming.has(item));
+  const timedExercises = new Set(
+    (planDay(plan, week, day)?.exercises ?? [])
+      .filter(exercise => exercise.seconds || /segundos/i.test(exercise.reps ?? ""))
+      .map(exercise => exercise.id)
+  );
+  let setPerformance: SetPerformance[];
+  try {
+    setPerformance = validateSetPerformance(
+      value.setPerformance === undefined
+        ? previousPerformance
+        : value.setPerformance,
+      required,
+      timedExercises
+    );
+  } catch (error) {
+    fail(400, error instanceof Error ? error.message : "Marcas inválidas");
+  }
   const needsCardio =
     plan.mode === "supersets" && planConfig(plan, levelValue).cardioMinutes > 0;
   const complete =
@@ -793,6 +819,7 @@ function sanitizePlanProgress(
   return {
     completedSets,
     requiredSets: required,
+    setPerformance,
     cardioDone: value.cardioDone,
     warmupDone: value.warmupDone,
     completedAt: complete ? new Date() : null,
@@ -1212,17 +1239,19 @@ export function registerFitPlanRoutes(
         parseLegacyDayKey(dayKey, deps.fail);
         const existing = await findFitProgress(auth.user.id, dayKey);
         const sessionLevel = existing?.session_level ?? auth.user.level;
-        let sanitized;
-        try {
-          sanitized = deps.sanitizeProgress(dayKey, sessionLevel, body);
-        } catch (error) {
-          throw error;
-        }
+        const sanitized = deps.sanitizeProgress(dayKey, sessionLevel, {
+          ...body,
+          setPerformance:
+            body.setPerformance === undefined
+              ? readSetPerformance(existing?.set_performance)
+              : body.setPerformance,
+        });
         const progress = await saveLegacyProgress(
           auth.user.id,
           dayKey,
           sessionLevel,
           sanitized.completedSets,
+          sanitized.setPerformance,
           sanitized.cardioDone,
           sanitized.warmupDone,
           sanitized.completedAt
@@ -1247,7 +1276,8 @@ export function registerFitPlanRoutes(
         parsed.day,
         sessionLevel,
         body,
-        deps.fail
+        deps.fail,
+        readSetPerformance(existing?.set_performance)
       );
       const { isPersonal, ...storedPlan } = plan;
       let progress: FitPlanProgressRow | null;
@@ -1259,6 +1289,7 @@ export function registerFitPlanRoutes(
           sessionLevel,
           requiredSets: JSON.stringify(sanitized.requiredSets),
           completedSets: JSON.stringify(sanitized.completedSets),
+          setPerformance: JSON.stringify(sanitized.setPerformance),
           cardioDone: sanitized.cardioDone,
           warmupDone: sanitized.warmupDone,
           completedAt: sanitized.completedAt,
@@ -1362,6 +1393,7 @@ async function saveLegacyProgress(
   dayKey: string,
   sessionLevel: FitLevel,
   completedSets: string[],
+  setPerformance: SetPerformance[],
   cardioDone: boolean,
   warmupDone: boolean,
   completedAt: Date | null
@@ -1371,6 +1403,7 @@ async function saveLegacyProgress(
     dayKey,
     sessionLevel,
     JSON.stringify(completedSets),
+    JSON.stringify(setPerformance),
     cardioDone,
     warmupDone,
     completedAt

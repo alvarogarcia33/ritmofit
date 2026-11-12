@@ -39,6 +39,11 @@ import {
 import { registerFitPlanRoutes } from "./fit-plans";
 import express from "express";
 import {
+  readSetPerformance,
+  validateSetPerformance,
+  type SetPerformance,
+} from "../shared/set-performance";
+import {
   DEFAULT_PLANS,
   replacePlanExerciseMediaFromDefault,
 } from "../shared/programs";
@@ -281,6 +286,7 @@ export interface PublicFitProgress {
   dayKey: string;
   level: FitLevel;
   completedSets: string[];
+  setPerformance: SetPerformance[];
   cardioDone: boolean;
   warmupDone: boolean;
   completedAt: string | null;
@@ -309,6 +315,7 @@ export function toPublicProgress(
     dayKey: row.day_key,
     level: row.session_level ?? fallbackLevel,
     completedSets: [...new Set(parseCompletedSets(row.completed_sets))],
+    setPerformance: readSetPerformance(row.set_performance),
     cardioDone: Boolean(row.cardio_done),
     warmupDone: Boolean(row.warmup_done),
     completedAt: nullableDateToIso(row.completed_at),
@@ -543,6 +550,7 @@ export function sanitizeProgress(
   value: unknown
 ): {
   completedSets: string[];
+  setPerformance: SetPerformance[];
   cardioDone: boolean;
   warmupDone: boolean;
   completedAt: Date | null;
@@ -592,8 +600,18 @@ export function sanitizeProgress(
   }
   const complete =
     body.cardioDone && [...required].every(item => accepted.includes(item));
+  let setPerformance: SetPerformance[];
+  try {
+    setPerformance = validateSetPerformance(
+      body.setPerformance ?? [],
+      [...required]
+    );
+  } catch (error) {
+    fail(400, error instanceof Error ? error.message : "Marcas inválidas");
+  }
   return {
     completedSets: accepted,
+    setPerformance,
     cardioDone: body.cardioDone,
     warmupDone: body.warmupDone,
     completedAt: complete ? new Date() : null,
@@ -972,12 +990,19 @@ export async function registerFitRoutes(app: Express): Promise<void> {
       const body = bodyOf(req);
       const existing = await findFitProgress(auth.user.id, dayKey);
       const sessionLevel = existing?.session_level ?? auth.user.level;
-      const sanitized = sanitizeProgress(dayKey, sessionLevel, body);
+      const sanitized = sanitizeProgress(dayKey, sessionLevel, {
+        ...body,
+        setPerformance:
+          body.setPerformance === undefined
+            ? readSetPerformance(existing?.set_performance)
+            : body.setPerformance,
+      });
       const progress = await saveFitProgress(
         auth.user.id,
         dayKey,
         sessionLevel,
         JSON.stringify(sanitized.completedSets),
+        JSON.stringify(sanitized.setPerformance),
         sanitized.cardioDone,
         sanitized.warmupDone,
         sanitized.completedAt

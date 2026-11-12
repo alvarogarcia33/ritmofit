@@ -77,6 +77,7 @@ function harness(account: unknown = user) {
     toPublicProgress: row => row as never,
     sanitizeProgress: () => ({
       completedSets: [],
+      setPerformance: [],
       cardioDone: false,
       warmupDone: false,
       completedAt: null,
@@ -304,6 +305,94 @@ describe("Rutas privadas de Plan Personal con almacenamiento mock", () => {
       expect(store.saveFitPlanEnrollment).not.toHaveBeenCalled();
     }
   );
+  it("valida las marcas reales de una serie y persiste peso y repeticiones", async () => {
+    store.findFitUserPlan.mockResolvedValue(owned);
+    store.findFitPlanEnrollment.mockResolvedValue({
+      user_id: 42,
+      plan_id: plan.id,
+      start_date: "2026-11-16",
+      level: "beginner",
+      rest_seconds: 90,
+    });
+    const setKey = "pp-d7-curl-barra:1";
+    const marks = [{ setKey, weightKg: 42.5, reps: 11 }];
+    store.saveFitPlanProgress.mockResolvedValue({
+      user_id: 42,
+      plan_id: plan.id,
+      day_key: "w1-d7",
+      session_level: "beginner",
+      completed_sets: [],
+      set_performance: JSON.stringify(marks),
+      cardio_done: false,
+      warmup_done: false,
+      completed_at: null,
+      updated_at: new Date(),
+    });
+    const valid = await harness().invoke(
+      "PUT", "/plans/:id/progress/:dayKey",
+      {
+        completedSets: [],
+        setPerformance: marks,
+        cardioDone: false,
+        warmupDone: false,
+      },
+      { id: plan.id, dayKey: "w1-d7" }
+    );
+    expect(valid.status).toBe(200);
+    expect(JSON.parse(store.saveFitPlanProgress.mock.calls[0][0].setPerformance))
+      .toEqual(marks);
+    expect(valid.data.progress.setPerformance).toEqual(marks);
+    expect(valid.data.progress.completedSets).toEqual([]);
+
+    store.saveFitPlanProgress.mockClear();
+    const invalid = await harness().invoke(
+      "PUT", "/plans/:id/progress/:dayKey",
+      {
+        completedSets: [],
+        setPerformance: [{ setKey: "pp-d1-curl-barra:1", weightKg: 20, reps: 10 }],
+        cardioDone: false,
+        warmupDone: false,
+      },
+      { id: plan.id, dayKey: "w1-d7" }
+    );
+    expect(invalid.status).toBe(400);
+    expect(store.saveFitPlanProgress).not.toHaveBeenCalled();
+  });
+
+  it("mantiene las marcas anteriores cuando el cliente solo actualiza series", async () => {
+    store.findFitUserPlan.mockResolvedValue(owned);
+    store.findFitPlanEnrollment.mockResolvedValue({
+      user_id: 42,
+      plan_id: plan.id,
+      start_date: "2026-11-16",
+      level: "beginner",
+      rest_seconds: 90,
+    });
+    const marks = [{ setKey: "pp-d7-curl-barra:1", weightKg: 35, reps: 12 }];
+    store.findFitPlanProgress.mockResolvedValue({
+      session_level: "beginner",
+      set_performance: JSON.stringify(marks),
+    });
+    store.saveFitPlanProgress.mockResolvedValue({
+      day_key: "w1-d7",
+      session_level: "beginner",
+      completed_sets: [],
+      set_performance: JSON.stringify(marks),
+      cardio_done: false,
+      warmup_done: true,
+      completed_at: null,
+      updated_at: new Date(),
+    });
+    const result = await harness().invoke("PUT", "/plans/:id/progress/:dayKey", {
+      completedSets: [],
+      cardioDone: false,
+      warmupDone: true,
+    }, { id: plan.id, dayKey: "w1-d7" });
+    expect(result.status).toBe(200);
+    expect(JSON.parse(store.saveFitPlanProgress.mock.calls[0][0].setPerformance))
+      .toEqual(marks);
+  });
+
   it("guarda una sesión del domingo y transmite versión esperada sin isPersonal", async () => {
     store.findFitUserPlan.mockResolvedValue(owned);
     store.findFitPlanEnrollment.mockResolvedValue({

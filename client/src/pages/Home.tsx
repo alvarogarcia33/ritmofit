@@ -26,13 +26,17 @@ import {
 } from "@/components/FitWidgets";
 import { useFit } from "@/contexts/FitContext";
 import {
+  api,
   currentProgramDay,
   dayDate,
   dayKey,
   dateLabel,
   overdueDays,
   type Progress,
+  type PersonalPlanArchive,
 } from "@/lib/fit";
+import { previousExerciseMarks } from "@/lib/strength";
+import { formatSetMark, type SetPerformance } from "@shared/set-performance";
 import {
   LEVELS,
   STRETCH,
@@ -77,6 +81,10 @@ export default function Home() {
   const [week, setWeek] = useState(1),
     [day, setDay] = useState(1);
   const [guestLevel, setGuestLevel] = useState<Level>("beginner");
+  const [archivedPlans, setArchivedPlans] = useState<PersonalPlanArchive[]>([]);
+  const [markDrafts, setMarkDrafts] = useState<
+    Record<string, { weightKg: string; reps: string }>
+  >({});
   const [video, setVideo] = useState<Demonstration | null>(null);
   const [celebration, setCelebration] = useState<string | null>(null);
   const [saving, setSaving] = useState(false),
@@ -132,6 +140,36 @@ export default function Home() {
     completedAt: null,
     updatedAt: "",
   };
+  useEffect(() => {
+    if (planLoading || loading) return;
+    const next: Record<string, { weightKg: string; reps: string }> = {};
+    for (const mark of record.setPerformance ?? []) {
+      next[mark.setKey] = {
+        weightKg: mark.weightKg === null ? "" : String(mark.weightKg),
+        reps: mark.reps === null ? "" : String(mark.reps),
+      };
+    }
+    setMarkDrafts(next);
+  }, [planId, key, planLoading, loading]);
+
+  useEffect(() => {
+    if (!account || !isPersonalPlan) {
+      setArchivedPlans([]);
+      return;
+    }
+    let current = true;
+    void api<{ versions: PersonalPlanArchive[] }>("/personal-plan/versions")
+      .then(result => {
+        if (current) setArchivedPlans(result.versions);
+      })
+      .catch(() => {
+        if (current) setArchivedPlans([]);
+      });
+    return () => {
+      current = false;
+    };
+  }, [account?.id, planId, isPersonalPlan]);
+
   const requiredSets = exercises.flatMap(e =>
     Array.from(
       { length: exerciseSets(plan, e, level) },
@@ -176,13 +214,13 @@ export default function Home() {
   };
   const persist = async (
     changes: Partial<
-      Pick<Progress, "completedSets" | "cardioDone" | "warmupDone">
+      Pick<Progress, "completedSets" | "cardioDone" | "warmupDone" | "setPerformance">
     >,
     message?: string
   ) => {
     if (!account) {
       navigate("/acceso?registro=1");
-      return;
+      return false;
     }
     const nextSets = changes.completedSets ?? record.completedSets;
     const reopensCompletedSession =
@@ -195,24 +233,75 @@ export default function Home() {
         "Esta sesión ya está cumplida. ¿Quieres corregirla? Al desmarcar una serie o el cardio, su estrella se retirará hasta volver a completarla. Los demás registros no cambian."
       )
     )
-      return;
+      return false;
     setSaving(true);
     try {
       const next = await writeProgress(key, {
         completedSets: record.completedSets,
         cardioDone: record.cardioDone,
         warmupDone: record.warmupDone,
+        setPerformance: record.setPerformance ?? [],
         ...changes,
       });
       if (next.completedAt && !record.completedAt)
         setCelebration("¡Rutina cumplida! Esta estrella es tuya.");
       else if (message) setCelebration(message);
+      return true;
     } catch (e) {
       toast.error((e as Error).message);
+      return false;
     } finally {
       setSaving(false);
     }
   };
+  const changeMark = (
+    setKey: string,
+    field: "weightKg" | "reps",
+    value: string
+  ) => {
+    setMarkDrafts(current => ({
+      ...current,
+      [setKey]: {
+        weightKg: current[setKey]?.weightKg ?? "",
+        reps: current[setKey]?.reps ?? "",
+        [field]: value,
+      },
+    }));
+  };
+
+  const saveExerciseMarks = (exercise: Exercise) => {
+    const ids = Array.from(
+      { length: exerciseSets(plan, exercise, level) },
+      (_, index) => `${exercise.id}:${index + 1}`
+    );
+    const previous = (record.setPerformance ?? []).filter(
+      item => !ids.includes(item.setKey)
+    );
+    const next: SetPerformance[] = [...previous];
+    for (const setKey of ids) {
+      const raw = markDrafts[setKey];
+      const weightText = raw?.weightKg.trim() ?? "";
+      const isTimed = Boolean(exercise.seconds || /segundos/i.test(exercise.reps ?? ""));
+      const repsText = isTimed ? "" : (raw?.reps.trim() ?? "");
+      if (!weightText && !repsText) continue;
+      const weightKg = weightText ? Number(weightText) : null;
+      const reps = repsText ? Number(repsText) : null;
+      if (
+        (weightKg !== null &&
+          (!Number.isFinite(weightKg) || weightKg < 0 || weightKg > 1000 ||
+            Math.abs(weightKg * 100 - Math.round(weightKg * 100)) > 0.000001)) ||
+        (reps !== null && (!Number.isSafeInteger(reps) || reps < 1 || reps > 200))
+      ) {
+        toast.error("Usá pesos de 0 a 1000 kg (hasta dos decimales) y repeticiones de 1 a 200.");
+        return;
+      }
+      next.push({ setKey, weightKg, reps });
+    }
+    void persist({ setPerformance: next }).then(saved => {
+      if (saved) toast.success("Peso y repeticiones guardados.");
+    });
+  };
+
   const toggleSet = (exercise: Exercise, round: number) => {
     const id = `${exercise.id}:${round}`,
       adding = !record.completedSets.includes(id);
@@ -670,6 +759,13 @@ export default function Home() {
                           done = ids.every(id =>
                             record.completedSets.includes(id)
                           );
+                        const previousMarks = previousExerciseMarks(
+                          e.id,
+                          key,
+                          enrollment?.startDate ?? user?.startDate ?? "",
+                          progress,
+                          archivedPlans
+                        );
                         const reps =
                           plan.mode === "straight"
                             ? (e.reps ?? "Según ejercicio")
@@ -814,6 +910,78 @@ export default function Home() {
                                   ? "Ejercicio realizado"
                                   : "Marcar ejercicio"}
                               </button>
+                            </div>
+                            <div className="exercise-measurements">
+                              <div className="exercise-measurements-heading">
+                                <strong>REGISTRÁ TU CARGA REAL</strong>
+                                {previousMarks && (
+                                  <span className="exercise-last-mark">
+                                    Última vez ({dateLabel(previousMarks.date, true)}):{" "}
+                                    {previousMarks.sets
+                                      .map(item => `S${item.round}: ${formatSetMark(item.mark)}`)
+                                      .join(" · ")}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="exercise-measurements-grid">
+                                {ids.map((setKey, index) => {
+                                  const mark = markDrafts[setKey];
+                                  return (
+                                    <div className="exercise-mark-line" key={setKey}>
+                                      <span>Serie {index + 1}</span>
+                                      <label>
+                                        <span>Peso (kg)</span>
+                                        <input
+                                          type="number"
+                                          inputMode="decimal"
+                                          min="0"
+                                          max="1000"
+                                          step="0.01"
+                                          value={mark?.weightKg ?? ""}
+                                          placeholder="—"
+                                          disabled={busy || !account}
+                                          aria-label={`Peso en kilogramos, serie ${index + 1} de ${e.name}`}
+                                          onChange={event =>
+                                            changeMark(setKey, "weightKg", event.target.value)
+                                          }
+                                        />
+                                      </label>
+                                      {!e.seconds && !/segundos/i.test(e.reps ?? "") ? (
+                                        <label>
+                                          <span>Reps reales</span>
+                                          <input
+                                            type="number"
+                                            inputMode="numeric"
+                                            min="1"
+                                            max="200"
+                                            step="1"
+                                            value={mark?.reps ?? ""}
+                                            placeholder="—"
+                                            disabled={busy || !account}
+                                            aria-label={`Repeticiones realizadas, serie ${index + 1} de ${e.name}`}
+                                            onChange={event =>
+                                              changeMark(setKey, "reps", event.target.value)
+                                            }
+                                          />
+                                        </label>
+                                      ) : (
+                                        <small>Ejercicio cronometrado</small>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              <div className="exercise-measurements-footer">
+                                <small>Opcional: guardar marcas no completa automáticamente las series.</small>
+                                <button
+                                  type="button"
+                                  className="button secondary exercise-mark-save"
+                                  disabled={busy || !account}
+                                  onClick={() => saveExerciseMarks(e)}
+                                >
+                                  Guardar marcas
+                                </button>
+                              </div>
                             </div>
                           </article>
                         );

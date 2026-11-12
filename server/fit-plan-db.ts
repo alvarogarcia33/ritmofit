@@ -4,7 +4,7 @@ import { getFitPool } from "./fit-db";
 import type { FitLevel } from "./fit-db";
 import type { TrainingPlan } from "../shared/programs";
 
-export const FIT_PLAN_SCHEMA_VERSION = 3;
+export const FIT_PLAN_SCHEMA_VERSION = 4;
 
 export interface FitPlanRow extends RowDataPacket {
   id: string;
@@ -47,6 +47,7 @@ export interface FitPlanProgressRow extends RowDataPacket {
   session_level: FitLevel | null;
   required_sets: string | string[] | null;
   completed_sets: string | string[];
+  set_performance: string | unknown[] | null;
   cardio_done: number | boolean;
   warmup_done: number | boolean;
   completed_at: string | Date | null;
@@ -243,6 +244,7 @@ const TABLE_DEFINITIONS: Array<{
         session_level ENUM('beginner', 'intermediate', 'advanced') NULL,
         required_sets JSON NULL,
         completed_sets JSON NOT NULL,
+        set_performance JSON NULL,
         cardio_done TINYINT(1) NOT NULL DEFAULT 0,
         warmup_done TINYINT(1) NOT NULL DEFAULT 0,
         completed_at DATETIME(3) NULL,
@@ -270,6 +272,7 @@ const TABLE_DEFINITIONS: Array<{
       },
       { name: "required_sets", definition: "JSON NULL" },
       { name: "completed_sets", definition: "JSON NULL" },
+      { name: "set_performance", definition: "JSON NULL" },
       { name: "cardio_done", definition: "TINYINT(1) NOT NULL DEFAULT 0" },
       { name: "warmup_done", definition: "TINYINT(1) NOT NULL DEFAULT 0" },
       { name: "completed_at", definition: "DATETIME(3) NULL" },
@@ -881,7 +884,7 @@ export async function saveFitActivePlan(
 
 const PLAN_PROGRESS_COLUMNS = `
   user_id, plan_id, day_key, session_level, required_sets, completed_sets,
-  cardio_done, warmup_done, completed_at, updated_at
+  set_performance, cardio_done, warmup_done, completed_at, updated_at
 `;
 
 export async function listFitPlanProgress(
@@ -923,6 +926,7 @@ export async function saveFitPlanProgress(input: {
   sessionLevel: FitLevel;
   requiredSets: string;
   completedSets: string;
+  setPerformance: string;
   cardioDone: boolean;
   warmupDone: boolean;
   completedAt: Date | null;
@@ -950,13 +954,14 @@ export async function saveFitPlanProgress(input: {
       INSERT INTO fit_plan_progress
         (
           user_id, plan_id, day_key, session_level, required_sets,
-          completed_sets, cardio_done, warmup_done, completed_at, updated_at
+          completed_sets, set_performance, cardio_done, warmup_done, completed_at, updated_at
         )
-      VALUES (?, ?, ?, ?, CAST(? AS JSON), CAST(? AS JSON), ?, ?, ?, CURRENT_TIMESTAMP(3))
+      VALUES (?, ?, ?, ?, CAST(? AS JSON), CAST(? AS JSON), CAST(? AS JSON), ?, ?, ?, CURRENT_TIMESTAMP(3))
       ON DUPLICATE KEY UPDATE
         session_level = COALESCE(session_level, VALUES(session_level)),
         required_sets = COALESCE(required_sets, VALUES(required_sets)),
         completed_sets = VALUES(completed_sets),
+        set_performance = VALUES(set_performance),
         cardio_done = VALUES(cardio_done),
         warmup_done = VALUES(warmup_done),
         completed_at = IF(
@@ -973,6 +978,7 @@ export async function saveFitPlanProgress(input: {
       input.sessionLevel,
       input.requiredSets,
       input.completedSets,
+      input.setPerformance,
       input.cardioDone ? 1 : 0,
       input.warmupDone ? 1 : 0,
       input.completedAt,

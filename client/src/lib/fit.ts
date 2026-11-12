@@ -1,4 +1,5 @@
 import type { Level } from "@shared/routine";
+import type { SetPerformance } from "@shared/set-performance";
 import { planDays, type TrainingPlan } from "@shared/programs";
 
 export type FitUser = {
@@ -19,6 +20,7 @@ export type Progress = {
   dayKey: string;
   level?: Level;
   completedSets: string[];
+  setPerformance?: SetPerformance[];
   cardioDone: boolean;
   warmupDone: boolean;
   completedAt: string | null;
