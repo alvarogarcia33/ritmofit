@@ -97,7 +97,7 @@ describe("Persistencia privada de Plan Personal con DB simulada", () => {
       exercise_id: "jalon-polea-agarre-v",
       video_url: "https://www.youtube.com/watch?v=AbCdEfGhI12",
       credit: "Canal de entrenamiento",
-    }]]);
+    }]]).mockResolvedValue([{ affectedRows: 1 }]);
     expect(await listPersonalExerciseMedia()).toHaveLength(1);
     await savePersonalExerciseMedia("jalon-polea-agarre-v", "https://vimeo.com/123456789", "Autor");
     await savePersonalExerciseMedia("jalon-polea-agarre-v", "", "");
