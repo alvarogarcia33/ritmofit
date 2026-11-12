@@ -22,7 +22,7 @@ Repositorio: <https://github.com/alvarogarcia33/ritmofit>
 5. Confirmá para guardar y abrir el plan. En **Mi entrenamiento**, completá las series y seguí el reloj de descanso. Las sesiones, estrellas e historial se registran para esa cuenta y plan.
 6. En **Mi programa** consultá el calendario. En **Mi progreso** revisá el historial y los gráficos. En **Mi cuenta** ajustá perfil, fecha de inicio, descanso, hora, zona horaria y recordatorios.
 
-El Plan Personal no inventa videos ni láminas de demostración: muestra indicaciones y señala cuando una referencia no está vinculada. Se puede editar mientras no exista actividad guardada. Desde el primer registro de progreso se protege la estructura —días, ejercicios, orden y dosis— para conservar el historial; se puede seguir entrenando y usar el reloj.
+El Plan Personal no inventa videos ni láminas de demostración: muestra indicaciones y señala cuando una referencia no está vinculada. **Se puede editar aun con entrenamientos registrados**: al guardar una versión modificada se archivan atómicamente la rutina anterior y todas sus sesiones (completas y parciales), con las fechas, cantidades y ejercicios originales. La edición inicia un ciclo nuevo de cuatro semanas el próximo lunes cuando existía progreso; las sesiones previas se consultan en **Mi progreso → Versiones anteriores**. El progreso activo vuelve a cero solo para esa nueva versión; no se borran los registros históricos. Cada edición sin cambios se ignora; ediciones obsoletas de otra pestaña se rechazan para evitar sobrescrituras.
 
 ## Secciones de la aplicación
 
@@ -99,7 +99,9 @@ El contenedor usa Node 22 y respeta `PORT`. La ruta de salud sin autenticación 
 
 ## Base de datos y datos
 
-La persistencia de Fit está en MySQL y se implementa con `mysql2` en `server/fit-db.ts` y `server/fit-plan-db.ts`. Al iniciar, el servidor agrega de manera idempotente las tablas y columnas faltantes y mantiene la versión del esquema; los datos de usuarios no se deben borrar para desplegar una actualización. Entre las tablas están usuarios, sesiones, progreso legado, planes, inscripciones, plan activo y progreso por plan.
+La persistencia de Fit está en MySQL y se implementa con `mysql2` en `server/fit-db.ts` y `server/fit-plan-db.ts`. Al iniciar, el servidor agrega de manera idempotente las tablas y columnas faltantes y mantiene la versión del esquema; los datos de usuarios no se deben borrar para desplegar una actualización. Entre las tablas están usuarios, sesiones, progreso legado, planes, inscripciones, plan activo, progreso por plan y `fit_personal_plan_versions` (ediciones anteriores de rutinas personales con instantánea de sus sesiones).
+
+**Antes de desplegar la edición por versiones:** respaldá la base real y probá con MySQL de staging aislado. La inicialización agrega la tabla `fit_personal_plan_versions` (esquema de planes v3) sin eliminar tablas existentes. Al editar un plan con actividad, el servidor archiva su contenido y progreso dentro de una transacción antes de liberar los identificadores de sesiones de la nueva edición. No ejecutes cambios manuales sobre `fit_plan_progress` sin verificar la existencia de los archivos históricos.
 
 El código también conserva configuración Drizzle heredada de la plantilla. Los planes de entrenamiento usan las rutinas SQL y el inicializador de Fit; no ejecutes `pnpm db:push` como sustituto de una migración revisada de Fit. Respaldá la base antes de cambios de esquema.
 

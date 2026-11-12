@@ -20,7 +20,7 @@ import {
   type TrainingPlan,
 } from "@shared/programs";
 
-type PersonalPlanState = { plan: TrainingPlan; editable: boolean };
+type PersonalPlanState = { plan: TrainingPlan; hasProgress: boolean };
 
 export default function Plans() {
   const {
@@ -46,11 +46,11 @@ export default function Plans() {
     try {
       const result = await api<{
         plan: TrainingPlan | null;
-        editable: boolean;
+        hasProgress: boolean;
       }>("/personal-plan");
       setPersonalPlan(
         result.plan
-          ? { plan: result.plan, editable: Boolean(result.editable) }
+          ? { plan: result.plan, hasProgress: Boolean(result.hasProgress) }
           : null
       );
     } catch (error) {
@@ -67,13 +67,7 @@ export default function Plans() {
     void loadPersonalPlan();
   }, [loadPersonalPlan]);
   const publicPlans = plans.filter(p => !p.isPersonal);
-  const openPersonalPlan = () => {
-    if (personalPlan && !personalPlan.editable) {
-      void choose(personalPlan.plan.id);
-    } else {
-      navigate("/plan-personal");
-    }
-  };
+  const openPersonalPlan = () => navigate("/plan-personal");
   const choose = async (id: string) => {
     setSelecting(id);
     try {
@@ -262,9 +256,7 @@ export default function Plans() {
                 }
                 onClick={openPersonalPlan}
               >
-                {personalPlan.editable
-                  ? "Editar tu rutina"
-                  : "Abrir Plan Personal"}
+                Editar tu rutina
                 <ArrowRight size={17} />
               </button>
             </div>
@@ -283,9 +275,7 @@ export default function Plans() {
           </h3>
           <p>
             {personalPlan
-              ? personalPlan.editable
-                ? "Podés ajustar los días y ejercicios mientras no haya progreso asociado. La rutina y su historial son privados de tu cuenta."
-                : "El historial ya iniciado protege la estructura de la rutina. Podés abrir el plan y seguir entrenando; tus registros se conservan."
+              ? "Podés editar ejercicios, días, orden y series incluso después de entrenar. Cada versión anterior queda archivada con sus sesiones y fechas."
               : "Elegí ejercicios de lunes a domingo y ajustá series y repeticiones. El plan queda privado y asociado a tu cuenta."}
           </p>
           {personalError && (
@@ -308,9 +298,7 @@ export default function Plans() {
             {personalLoading
               ? "Buscando tu plan…"
               : personalPlan
-                ? personalPlan.editable
-                  ? "Editar Plan Personal"
-                  : "Abrir Plan Personal"
+                ? "Editar Plan Personal"
                 : "Crear Plan Personal"}
             <ArrowRight size={16} />
           </button>

@@ -27,6 +27,9 @@ import {
   saveFitPlanProgress,
   FitPersonalPlanExistsError,
   FitPersonalPlanLockedError,
+  FitPersonalPlanConflictError,
+  listFitPersonalPlanVersions,
+  currentFitPersonalPlanVersion,
 } from "./fit-plan-db";
 import { buildPersonalPlan } from "../shared/exercise-library";
 const plan = buildPersonalPlan(
@@ -79,7 +82,7 @@ describe("Persistencia privada de Plan Personal con DB simulada", () => {
         /DELETE|DROP TABLE|UPDATE fit_plan_progress|UPDATE fit_plans/.test(sql)
       )
     ).toBe(false);
-    expect(mock.execute.mock.calls.at(-1)?.[1]).toEqual([2]);
+    expect(mock.execute.mock.calls.at(-1)?.[1]).toEqual([3]);
   });
 
   it("filtra globales con owner NULL y rutinas privadas por owner e id", async () => {
@@ -144,48 +147,123 @@ describe("Persistencia privada de Plan Personal con DB simulada", () => {
     expect(mock.connection.release).toHaveBeenCalledOnce();
   });
 
-  it("edita solo la fila propia sin progreso, conservando matrícula y fecha", async () => {
+  const updated = {
+    ...plan,
+    routine: {
+      first: plan.routine.first.map(day => ({
+        ...day,
+        exercises: day.exercises.map(exercise => ({
+          ...exercise,
+          sets: 4,
+        })),
+      })),
+      second: plan.routine.second.map(day => ({
+        ...day,
+        exercises: day.exercises.map(exercise => ({
+          ...exercise,
+          sets: 4,
+        })),
+      })),
+    },
+  };
+
+  it("edita una rutina sin progreso, archiva su versión y mantiene su matrícula", async () => {
     mock.connection.execute
-      .mockResolvedValueOnce([[{ id: plan.id }]])
+      .mockResolvedValueOnce([[{ payload: plan }]])
+      .mockResolvedValueOnce([[{ last_version: 0 }]])
+      .mockResolvedValueOnce([[{ start_date: "2026-11-16" }]])
       .mockResolvedValueOnce([[]])
       .mockResolvedValue([{ affectedRows: 1 }]);
-    await updateFitPersonalPlan(42, plan);
-    expect(mock.connection.execute.mock.calls[0][1]).toEqual([plan.id, 42]);
-    expect(mock.connection.execute.mock.calls[1][1]).toEqual([42, plan.id]);
-    expect(mock.connection.execute.mock.calls[2][1]).toEqual([
-      JSON.stringify(plan),
-      plan.id,
-      42,
-    ]);
-    expect(
-      mock.connection.execute.mock.calls.some(([sql]) =>
-        String(sql).includes("fit_plan_enrollments")
-      )
-    ).toBe(false);
+    const result = await updateFitPersonalPlan(42, updated, plan, "2026-11-23");
+    expect(result).toEqual({ archived: true, version: 2, restarted: false });
+    const queries = mock.connection.execute.mock.calls;
+    expect(queries[0][0]).toContain("owner_user_id = ? FOR UPDATE");
+    expect(queries.some(([sql]) => String(sql).includes("INSERT INTO fit_personal_plan_versions"))).toBe(true);
+    expect(queries.some(([sql]) => String(sql).includes("DELETE FROM fit_plan_progress"))).toBe(false);
+    expect(queries.some(([sql]) => String(sql).includes("UPDATE fit_plan_enrollments"))).toBe(false);
     expect(mock.connection.commit).toHaveBeenCalledOnce();
   });
 
-  it.each(["sin dueño", "con historial"])(
-    "rechaza edición %s bajo lock",
-    async reason => {
-      mock.connection.execute
-        .mockResolvedValueOnce([
-          reason === "sin dueño" ? [] : [{ id: plan.id }],
-        ])
-        .mockResolvedValueOnce([[{ present: 1 }]]);
-      await expect(updateFitPersonalPlan(42, plan)).rejects.toBeInstanceOf(
-        FitPersonalPlanLockedError
-      );
-      expect(
-        mock.connection.execute.mock.calls.some(([sql]) =>
-          String(sql).includes("UPDATE fit_plans")
-        )
-      ).toBe(false);
-      expect(mock.connection.rollback).toHaveBeenCalledOnce();
-      expect(mock.connection.commit).not.toHaveBeenCalled();
-      expect(mock.connection.release).toHaveBeenCalledOnce();
-    }
-  );
+  it("archiva sesiones completas y parciales antes de reiniciar el ciclo en una transacción", async () => {
+    const previousProgress = [
+      {
+        user_id: 42, plan_id: plan.id, day_key: "w1-d7",
+        session_level: "beginner", required_sets: '["pp-d7-curl-barra:1"]',
+        completed_sets: '["pp-d7-curl-barra:1"]',
+        warmup_done: 1, cardio_done: 0,
+        completed_at: "2026-11-22T15:00:00Z",
+        updated_at: "2026-11-22T15:00:00Z",
+      },
+    ];
+    mock.connection.execute
+      .mockResolvedValueOnce([[{ payload: plan }]])
+      .mockResolvedValueOnce([[{ last_version: 2 }]])
+      .mockResolvedValueOnce([[{ start_date: "2026-11-16" }]])
+      .mockResolvedValueOnce([previousProgress])
+      .mockResolvedValue([{ affectedRows: 1 }]);
+    const result = await updateFitPersonalPlan(42, updated, plan, "2026-11-23");
+    expect(result).toEqual({ archived: true, version: 4, restarted: true });
+    const calls = mock.connection.execute.mock.calls;
+    const archiveIndex = calls.findIndex(([sql]) => String(sql).includes("INSERT INTO fit_personal_plan_versions"));
+    const deleteIndex = calls.findIndex(([sql]) => String(sql).includes("DELETE FROM fit_plan_progress"));
+    const restartIndex = calls.findIndex(([sql]) => String(sql).includes("UPDATE fit_plan_enrollments"));
+    expect(archiveIndex).toBeGreaterThan(-1);
+    expect(deleteIndex).toBeGreaterThan(archiveIndex);
+    expect(restartIndex).toBeGreaterThan(deleteIndex);
+    expect(calls[archiveIndex][1]).toEqual([
+      42, plan.id, 3, JSON.stringify(plan),
+      JSON.stringify(previousProgress), "2026-11-16",
+    ]);
+    expect(calls[restartIndex][1]).toEqual(["2026-11-23", 42, plan.id]);
+    expect(mock.connection.commit).toHaveBeenCalledOnce();
+  });
+
+  it("no archiva ni reinicia cuando la edición no cambió nada", async () => {
+    mock.connection.execute
+      .mockResolvedValueOnce([[{ payload: plan }]])
+      .mockResolvedValueOnce([[{ last_version: 1 }]]);
+    const result = await updateFitPersonalPlan(42, plan, plan, "2026-11-23");
+    expect(result).toEqual({ archived: false, version: 2, restarted: false });
+    expect(mock.connection.execute).toHaveBeenCalledTimes(2);
+    expect(mock.connection.commit).toHaveBeenCalledOnce();
+  });
+
+  it("rechaza ediciones de otro dueño o de una versión obsoleta", async () => {
+    mock.connection.execute.mockResolvedValueOnce([[]]);
+    await expect(updateFitPersonalPlan(42, updated, plan, "2026-11-23"))
+      .rejects.toBeInstanceOf(FitPersonalPlanLockedError);
+    mock.connection.execute.mockReset();
+    mock.connection.execute.mockResolvedValueOnce([[{ payload: updated }]]);
+    await expect(updateFitPersonalPlan(42, updated, plan, "2026-11-23"))
+      .rejects.toBeInstanceOf(FitPersonalPlanConflictError);
+    expect(mock.connection.rollback).toHaveBeenCalledTimes(2);
+    expect(mock.connection.commit).not.toHaveBeenCalled();
+  });
+
+  it("revierte la edición cuando falla la escritura de la versión anterior", async () => {
+    mock.connection.execute
+      .mockResolvedValueOnce([[{ payload: plan }]])
+      .mockResolvedValueOnce([[{ last_version: 0 }]])
+      .mockResolvedValueOnce([[{ start_date: "2026-11-16" }]])
+      .mockResolvedValueOnce([[{ day_key: "w1-d7", completed_sets: ["x:1"] }]])
+      .mockRejectedValueOnce(new Error("archive insert failed"));
+    await expect(updateFitPersonalPlan(42, updated, plan, "2026-11-23"))
+      .rejects.toThrow("archive insert failed");
+    expect(mock.connection.execute.mock.calls.some(([sql]) =>
+      String(sql).includes("DELETE FROM fit_plan_progress")
+    )).toBe(false);
+    expect(mock.connection.rollback).toHaveBeenCalledOnce();
+    expect(mock.connection.commit).not.toHaveBeenCalled();
+  });
+
+  it("consulta versiones solo del titular de la cuenta", async () => {
+    mock.execute.mockResolvedValueOnce([[{ current_version: 4 }]])
+      .mockResolvedValueOnce([[{ version: 3, user_id: 42 }]]);
+    expect(await currentFitPersonalPlanVersion(42, plan.id)).toBe(4);
+    expect(await listFitPersonalPlanVersions(42, plan.id)).toHaveLength(1);
+    expect(mock.execute.mock.calls[0][1]).toEqual([42, plan.id]);
+    expect(mock.execute.mock.calls[1][1]).toEqual([42, plan.id]);
+  });
 
   const progressInput = {
     userId: 42,
