@@ -464,14 +464,15 @@ export function buildPersonalPlan(
     throw new PersonalPlanInputError(
       "Agrega ejercicios a por lo menos un día de la semana."
     );
-  const duration = value.duration ?? PERSONAL_PLAN_WEEKS;
+  const requestedDuration = value.duration ?? PERSONAL_PLAN_WEEKS;
   if (
-    duration !== "continuous" &&
-    !PERSONAL_PLAN_DURATIONS.some(weeks => weeks === duration)
+    requestedDuration !== "continuous" &&
+    !PERSONAL_PLAN_DURATIONS.some(weeks => weeks === requestedDuration)
   )
     throw new PersonalPlanInputError(
       "Elegí una duración de 4, 8 o 12 semanas, o continua."
     );
+  const duration = requestedDuration as PersonalPlanDuration;
   const normalized = value.days.map(normalizeDay);
   if (new Set(normalized.map(day => day.day)).size !== normalized.length)
     throw new PersonalPlanInputError("No puedes repetir el mismo día.");
