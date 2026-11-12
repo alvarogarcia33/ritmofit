@@ -240,6 +240,25 @@ export default function Home() {
       ? overdueDays(user, progress, plan)
       : [];
   const busy = saving || planLoading || loading;
+  const hasUnsavedMarks = hasUnsavedExerciseMarks(
+    requiredSets,
+    markDrafts,
+    record.setPerformance ?? []
+  );
+  const confirmLeavingMarks = () =>
+    !hasUnsavedMarks ||
+    window.confirm(
+      "Tenés pesos o repeticiones sin guardar. Si cambiás de día o semana, se perderán esos valores. ¿Continuar?"
+    );
+  useEffect(() => {
+    if (!hasUnsavedMarks) return;
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [hasUnsavedMarks]);
   const changeLevel = async (next: Level) => {
     if (!account) return setGuestLevel(next);
     setSaving(true);
@@ -309,40 +328,34 @@ export default function Home() {
     }));
   };
 
-  const saveExerciseMarks = (exercise: Exercise) => {
-    const ids = Array.from(
-      { length: exerciseSets(plan, exercise, level) },
-      (_, index) => `${exercise.id}:${index + 1}`
-    );
-    const previous = (record.setPerformance ?? []).filter(
-      item => !ids.includes(item.setKey)
-    );
-    const next: SetPerformance[] = [...previous];
-    for (const setKey of ids) {
-      const raw = markDrafts[setKey];
-      const weightText = raw?.weightKg.trim() ?? "";
-      const isTimed = Boolean(exercise.seconds || /segundos/i.test(exercise.reps ?? ""));
-      const repsText = isTimed ? "" : (raw?.reps.trim() ?? "");
-      if (!weightText && !repsText) continue;
-      const weightKg = weightText ? Number(weightText) : null;
-      const reps = repsText ? Number(repsText) : null;
-      if (
-        (weightKg !== null &&
-          (!Number.isFinite(weightKg) || weightKg < 0 || weightKg > 1000 ||
-            Math.abs(weightKg * 100 - Math.round(weightKg * 100)) > 0.000001)) ||
-        (reps !== null && (!Number.isSafeInteger(reps) || reps < 1 || reps > 200))
-      ) {
-        toast.error("Usá pesos de 0 a 1000 kg (hasta dos decimales) y repeticiones de 1 a 200.");
-        return;
-      }
-      next.push({ setKey, weightKg, reps });
+  /** The same server request commits the typed marks and the checked set. */
+  const prepareExerciseMarks = (exercise: Exercise) => {
+    try {
+      return mergeExerciseMarks(
+        exercise,
+        exerciseSets(plan, exercise, level),
+        markDrafts,
+        record.setPerformance ?? []
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Los datos de la serie no son válidos."
+      );
+      return null;
     }
+  };
+
+  const saveExerciseMarks = (exercise: Exercise) => {
+    const next = prepareExerciseMarks(exercise);
+    if (!next) return;
     void persist({ setPerformance: next }).then(saved => {
       if (saved) toast.success("Peso y repeticiones guardados.");
     });
   };
 
   const toggleSet = (exercise: Exercise, round: number) => {
+    const nextMarks = prepareExerciseMarks(exercise);
+    if (!nextMarks) return;
     const id = `${exercise.id}:${round}`,
       adding = !record.completedSets.includes(id);
     const next = adding
@@ -353,15 +366,18 @@ export default function Home() {
       (_, i) => `${exercise.id}:${i + 1}`
     ).every(s => next.includes(s));
     void persist(
-      { completedSets: next },
+      { completedSets: next, setPerformance: nextMarks },
       adding
         ? done
           ? "¡Ejercicio cumplido! Sigue a tu ritmo."
-          : `¡Serie ${round} cumplida! Tu esfuerzo suma.`
+          : undefined
         : undefined
     );
   };
+
   const toggleExercise = (exercise: Exercise) => {
+    const nextMarks = prepareExerciseMarks(exercise);
+    if (!nextMarks) return;
     const ids = Array.from(
         { length: exerciseSets(plan, exercise, level) },
         (_, i) => `${exercise.id}:${i + 1}`
@@ -369,6 +385,7 @@ export default function Home() {
       done = ids.every(id => record.completedSets.includes(id));
     void persist(
       {
+        setPerformance: nextMarks,
         completedSets: done
           ? record.completedSets.filter(id => !ids.includes(id))
           : Array.from(new Set([...record.completedSets, ...ids])),
