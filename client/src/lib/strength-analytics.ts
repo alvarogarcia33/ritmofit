@@ -211,7 +211,7 @@ export function buildStrengthAnalytics(
       if (!week) {
         week = {
           monday,
-          label: `Desde ${monday.slice(8, 10)}/${monday.slice(5, 7)}`,
+          label: `${monday.slice(8, 10)}/${monday.slice(5, 7)}/${monday.slice(2, 4)}`,
           volumeKg: 0,
           measuredSets: 0,
         };
