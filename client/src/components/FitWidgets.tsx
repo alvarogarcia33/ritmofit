@@ -14,18 +14,27 @@ import type { Exercise } from "@shared/routine";
 import { getVideoEmbedUrl } from "@shared/video";
 import { YouTubeVideo } from "./YouTubeVideo";
 
+export type TimerSnapshot = {
+  mode: "rest" | "cardio" | "exercise";
+  remaining: number;
+  running: boolean;
+  finished: boolean;
+};
+
 export function TimerCard({
   restSeconds,
   cardioMinutes,
   onCardioComplete,
   exerciseSeconds,
   exerciseLabel,
+  onSnapshot,
 }: {
   restSeconds: number;
   cardioMinutes: number;
   onCardioComplete?: () => void;
   exerciseSeconds?: number;
   exerciseLabel?: string;
+  onSnapshot?: (snapshot: TimerSnapshot) => void;
 }) {
   const [mode, setMode] = useState<"rest" | "cardio" | "exercise">("rest");
   const initial =
@@ -46,6 +55,9 @@ export function TimerCard({
     setRunning(false);
     setFinished(false);
   }, [initial, mode]);
+  useEffect(() => {
+    onSnapshot?.({ mode, remaining, running, finished });
+  }, [mode, remaining, running, finished, onSnapshot]);
   useEffect(() => {
     if (!running) return;
     const tick = () => {
