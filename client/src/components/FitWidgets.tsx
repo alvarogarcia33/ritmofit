@@ -269,6 +269,17 @@ export function VideoModal({
                 ? "Revisa la demostración completa antes de empezar. Mantén el control del movimiento y detente si sientes dolor."
                 : "No hay video ni lámina asociados. Sigue las indicaciones disponibles y detente si sientes dolor.")}
           </p>
+          {exercise.demoGuide && (
+            <div className="video-technique-guide">
+              <h3>Cómo realizar este ejercicio</h3>
+              <ol>
+                <li><strong>Preparación:</strong> {exercise.demoGuide.setup}</li>
+                <li><strong>Movimiento:</strong> {exercise.demoGuide.movement}</li>
+                <li><strong>Evitá:</strong> {exercise.demoGuide.avoid}</li>
+              </ol>
+              <small>Indicaciones generales. Ajustá la carga y el recorrido a tu capacidad; ante dolor, detené el ejercicio.</small>
+            </div>
+          )}
           {exercise.demoCredit && videoUrl && (
             <p className="video-attribution">
               Fuente: {exercise.demoCredit}. Video externo vinculado al catálogo.
