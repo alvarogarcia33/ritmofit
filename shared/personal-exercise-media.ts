@@ -44,5 +44,6 @@ export function withPersonalDemo(
     ...exercise,
     videoUrl: demo.videoUrl,
     thumbnail: personalDemoThumbnail(demo.videoUrl),
+    demoCredit: demo.credit,
   };
 }
