@@ -9,7 +9,14 @@ import {
   personalPlanDraftFromPlan,
   PersonalPlanInputError,
 } from "./exercise-library";
-import { DEFAULT_PLANS, requiredPlanSets, planTotalSessions } from "./programs";
+import {
+  DEFAULT_PLANS,
+  MAX_TRAINING_WEEK,
+  planAllowsWeek,
+  planVisibleWeeks,
+  requiredPlanSets,
+  planTotalSessions,
+} from "./programs";
 import { validateTrainingPlan } from "../server/fit-plans";
 
 const id = `${PERSONAL_PLAN_ID_PREFIX}12345678-1234-4234-8234-123456789abc`;
@@ -117,7 +124,7 @@ describe("Catálogo de grupos musculares y Plan Personal", () => {
     expect(plan.routine.first[0].exercises[0].reps).toBe("12 repeticiones");
     expect(plan.routine.first[1].exercises[0].seconds).toBe(40);
     expect(plan.routine.first[1].exercises[0].reps).toBe("40 segundos");
-    expect(personalPlanDraftFromPlan(plan)).toEqual(draft);
+    expect(personalPlanDraftFromPlan(plan)).toEqual({ ...draft, duration: 4 });
   });
 
   it("arma cuatro semanas por usuario, acepta domingo y conserva series/repeticiones elegidas", () => {
@@ -165,6 +172,7 @@ describe("Catálogo de grupos musculares y Plan Personal", () => {
       )
     ).toBe(true);
     expect(personalPlanDraftFromPlan(plan)).toEqual({
+      duration: 4,
       days: [
         {
           day: 1,
@@ -179,6 +187,60 @@ describe("Catálogo de grupos musculares y Plan Personal", () => {
         },
       ],
     });
+  });
+
+  it("admite ciclos de 4, 8 y 12 semanas sin alterar los ejercicios ni IDs de serie", () => {
+    const days = [{
+      day: 2,
+      exercises: [{ exerciseId: "jalon-polea-agarre-v", sets: 4, target: 10 }],
+    }];
+    for (const duration of [4, 8, 12] as const) {
+      const plan = buildPersonalPlan(id, { days, duration });
+      expect(validateTrainingPlan(plan)).toEqual(plan);
+      expect(plan.weeks).toBe(duration);
+      expect(plan.continuous).toBeUndefined();
+      expect(planTotalSessions(plan)).toBe(duration);
+      expect(requiredPlanSets(plan, duration, 2, "beginner"))
+        .toEqual(Array.from({ length: 4 }, (_, i) => `pp-d2-jalon-polea-agarre-v:${i + 1}`));
+      expect(personalPlanDraftFromPlan(plan)).toEqual({ days, duration });
+      expect(planAllowsWeek(plan, duration)).toBe(true);
+      expect(planAllowsWeek(plan, duration + 1)).toBe(false);
+    }
+  });
+
+  it("soporta un plan continuo sin inventar una fecha de fin", () => {
+    const days = [{
+      day: 1,
+      exercises: [{ exerciseId: "press-plano-barra", sets: 3, target: 10 }],
+    }];
+    const plan = buildPersonalPlan(id, { days, duration: "continuous" });
+    expect(validateTrainingPlan(plan)).toEqual(plan);
+    expect(plan.weeks).toBe(4);
+    expect(plan.continuous).toBe(true);
+    expect(planTotalSessions(plan)).toBeNull();
+    expect(planAllowsWeek(plan, 100)).toBe(true);
+    expect(planAllowsWeek(plan, MAX_TRAINING_WEEK)).toBe(true);
+    expect(planAllowsWeek(plan, MAX_TRAINING_WEEK + 1)).toBe(false);
+    expect(requiredPlanSets(plan, 100, 1, "beginner"))
+      .toHaveLength(3);
+    expect(planVisibleWeeks(plan, 100, 100)).toEqual([97, 98, 99, 100, 101]);
+    expect(personalPlanDraftFromPlan(plan)).toEqual({
+      days,
+      duration: "continuous",
+    });
+  });
+
+  it("rechaza duraciones inválidas y planes públicos continuos", () => {
+    const days = [{
+      day: 1,
+      exercises: [{ exerciseId: "press-plano-barra", sets: 3, target: 10 }],
+    }];
+    for (const duration of [0, 6, 16, "forever", null, "8"]) {
+      expect(() => buildPersonalPlan(id, { days, duration })).toThrow(/duración/);
+    }
+    expect(() => validateTrainingPlan({
+      ...DEFAULT_PLANS[1], continuous: true,
+    })).toThrow(/Plan Personal/);
   });
 
   it("no permite títulos, IDs de ejercicio o propietarios impuestos por el cliente", () => {
