@@ -140,6 +140,7 @@ describe("Ritmo Fit multi-plan authorization", () => {
       toPublicProgress: () => ({}) as never,
       sanitizeProgress: () => ({
         completedSets: [],
+        setPerformance: [],
         cardioDone: false,
         warmupDone: false,
         completedAt: null,
@@ -180,6 +181,7 @@ describe("Ritmo Fit multi-plan authorization", () => {
       toPublicProgress: () => ({}) as never,
       sanitizeProgress: () => ({
         completedSets: [],
+        setPerformance: [],
         cardioDone: false,
         warmupDone: false,
         completedAt: null,
