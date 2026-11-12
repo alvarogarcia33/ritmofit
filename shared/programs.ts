@@ -588,7 +588,7 @@ export function planVisibleWeeks(
     return Array.from({ length: plan.weeks }, (_, i) => i + 1);
   const center = Math.min(
     MAX_TRAINING_WEEK,
-    Math.max(1, currentWeek, selectedWeek)
+    Math.max(1, selectedWeek)
   );
   const start = Math.max(1, center - (count - 2));
   const end = Math.min(MAX_TRAINING_WEEK, start + count - 1);
