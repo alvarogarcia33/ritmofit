@@ -42,7 +42,7 @@ function recordedMarksLabel(record: Progress, routine: RoutineDay | undefined): 
 }
 
 export default function ProgressPage() {
-  const { planUser: user, loading, planLoading, progress, plan } = useFit();
+  const { planUser: user, loading, planLoading, progress, plan, enrollment } = useFit();
   const [archives, setArchives] = useState<PersonalPlanArchive[]>([]);
   const [archivesLoading, setArchivesLoading] = useState(false);
   const [archivesError, setArchivesError] = useState<string | null>(null);
@@ -340,7 +340,7 @@ export default function ProgressPage() {
                         <strong>{routine?.focus ?? "Sesión registrada"}</strong>
                         <span>
                           Semana {week} ·{" "}
-                          {dateLabel(dayDate(user.startDate, week, day), true)}
+                          {dateLabel(dayDate(enrollment?.startDate ?? user.startDate, week, day), true)}
                         </span>
                         {record.setPerformance?.length ? (
                           <small className="history-mark-summary">
