@@ -39,10 +39,12 @@ export function withPersonalDemo(
   const demo = exerciseId
     ? entries.find(item => item.exerciseId === exerciseId)
     : null;
+  const guide = exerciseId ? PERSONAL_TECHNIQUE_GUIDES[exerciseId] : undefined;
   if (!demo?.videoUrl || !getVideoEmbedUrl(demo.videoUrl))
-    return exercise;
+    return guide ? { ...exercise, demoGuide: guide } : exercise;
   return {
     ...exercise,
+    demoGuide: guide,
     videoUrl: demo.videoUrl,
     thumbnail: personalDemoThumbnail(demo.videoUrl),
     demoCredit: demo.credit,
