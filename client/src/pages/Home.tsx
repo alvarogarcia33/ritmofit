@@ -220,7 +220,7 @@ export default function Home() {
   ) => {
     if (!account) {
       navigate("/acceso?registro=1");
-      return;
+      return false;
     }
     const nextSets = changes.completedSets ?? record.completedSets;
     const reopensCompletedSession =
@@ -233,7 +233,7 @@ export default function Home() {
         "Esta sesión ya está cumplida. ¿Quieres corregirla? Al desmarcar una serie o el cardio, su estrella se retirará hasta volver a completarla. Los demás registros no cambian."
       )
     )
-      return;
+      return false;
     setSaving(true);
     try {
       const next = await writeProgress(key, {
@@ -246,8 +246,10 @@ export default function Home() {
       if (next.completedAt && !record.completedAt)
         setCelebration("¡Rutina cumplida! Esta estrella es tuya.");
       else if (message) setCelebration(message);
+      return true;
     } catch (e) {
       toast.error((e as Error).message);
+      return false;
     } finally {
       setSaving(false);
     }
@@ -294,8 +296,8 @@ export default function Home() {
       }
       next.push({ setKey, weightKg, reps });
     }
-    void persist({ setPerformance: next }).then(() => {
-      // The server response decides whether the values were accepted.
+    void persist({ setPerformance: next }).then(saved => {
+      if (saved) toast.success("Peso y repeticiones guardados.");
     });
   };
 
