@@ -18,6 +18,7 @@ import {
   Info,
   LockKeyhole,
   Plus,
+  Play,
   Search,
   ShieldCheck,
   Trash2,
@@ -25,6 +26,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { FitLayout } from "@/components/FitLayout";
+import { VideoModal } from "@/components/FitWidgets";
 import { useFit } from "@/contexts/FitContext";
 import { api } from "@/lib/fit";
 import {
@@ -36,6 +38,8 @@ import {
   type PersonalPlanDraft,
 } from "@shared/exercise-library";
 import type { TrainingPlan } from "@shared/programs";
+import type { Exercise } from "@shared/routine";
+import { withPersonalDemo, type PersonalExerciseMedia } from "@shared/personal-exercise-media";
 import "../personal-plan.css";
 
 const WEEKDAYS = [
@@ -76,6 +80,32 @@ export default function PersonalPlanBuilder() {
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [media, setMedia] = useState<PersonalExerciseMedia[]>([]);
+  const [preview, setPreview] = useState<Pick<
+    Exercise, "name" | "videoUrl" | "tips" | "videoAlternative" | "sourceImage" | "demoCredit"
+  > | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void api<{ media: PersonalExerciseMedia[] }>("/personal-exercises/media")
+      .then(data => { if (active) setMedia(data.media); })
+      .catch(() => { if (active) setMedia([]); });
+    return () => { active = false; };
+  }, []);
+
+  const previewExercise = (item: ExerciseLibraryItem) => {
+    const exercise: Exercise = {
+      id: `pp-d1-${item.id}`,
+      name: item.name,
+      videoUrl: "",
+      thumbnail: "",
+      block: 1,
+      tips: item.tips,
+    };
+    setPreview(withPersonalDemo(exercise, media));
+  };
+  const hasDemo = (exerciseId: string) =>
+    media.some(entry => entry.exerciseId === exerciseId && entry.videoUrl);
 
   const loadPlan = useCallback(async () => {
     setLoading(true);
@@ -126,6 +156,7 @@ export default function PersonalPlanBuilder() {
     update: (day: PersonalDaySelection) => PersonalDaySelection
   ) => {
     setDraft(current => ({
+      ...current,
       days: current.days.map(day =>
         day.day === selectedDay ? update(day) : day
       ),
@@ -152,6 +183,7 @@ export default function PersonalPlanBuilder() {
         )
           return currentDraft;
         return {
+          ...currentDraft,
           days: currentDraft.days.map(day =>
             day.day === selectedDay
               ? { ...day, exercises: [...day.exercises, nextExercise] }
@@ -160,6 +192,7 @@ export default function PersonalPlanBuilder() {
         };
       }
       return {
+        ...currentDraft,
         days: [
           ...currentDraft.days,
           { day: selectedDay, exercises: [nextExercise] },
@@ -174,6 +207,7 @@ export default function PersonalPlanBuilder() {
     if (!current) return;
     if (current.exercises.length === 1) {
       setDraft(value => ({
+        ...value,
         days: value.days.filter(day => day.day !== selectedDay),
       }));
       setFormError(null);
@@ -462,9 +496,14 @@ export default function PersonalPlanBuilder() {
                               <div>
                                 <h4>{item.name}</h4>
                                 <p>{item.tips}</p>
-                                <span className="pp-no-demo">
-                                  Sin video ni lámina específica
-                                </span>
+                                <button
+                                  type="button"
+                                  className="pp-demo-link"
+                                  onClick={() => previewExercise(item)}
+                                >
+                                  <Play size={14} />
+                                  {hasDemo(item.id) ? "Ver demostración" : "Ver guía técnica"}
+                                </button>
                               </div>
                               <button
                                 className="pp-icon-button pp-remove-button"
@@ -633,6 +672,14 @@ export default function PersonalPlanBuilder() {
                                         ? `${item.defaultTarget} segundos iniciales`
                                         : `${item.defaultTarget} repeticiones iniciales`}
                                     </small>
+                                    <button
+                                      type="button"
+                                      className="pp-demo-link"
+                                      onClick={() => previewExercise(item)}
+                                    >
+                                      <Play size={13} />
+                                      {hasDemo(item.id) ? "Ver video" : "Guía técnica"}
+                                    </button>
                                   </div>
                                   <button
                                     className={`pp-add-button ${alreadyAdded ? "is-added" : ""}`}
@@ -724,6 +771,7 @@ export default function PersonalPlanBuilder() {
           </form>
         )}
       </main>
+      <VideoModal exercise={preview} onClose={() => setPreview(null)} />
     </FitLayout>
   );
 }
