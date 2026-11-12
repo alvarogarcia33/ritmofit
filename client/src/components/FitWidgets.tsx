@@ -154,7 +154,7 @@ export function VideoModal({
 }: {
   exercise: Pick<
     Exercise,
-    "name" | "videoUrl" | "tips" | "videoAlternative" | "sourceImage"
+    "name" | "videoUrl" | "tips" | "videoAlternative" | "sourceImage" | "demoCredit"
   > | null;
   onClose: () => void;
 }) {
@@ -269,6 +269,11 @@ export function VideoModal({
                 ? "Revisa la demostración completa antes de empezar. Mantén el control del movimiento y detente si sientes dolor."
                 : "No hay video ni lámina asociados. Sigue las indicaciones disponibles y detente si sientes dolor.")}
           </p>
+          {exercise.demoCredit && videoUrl && (
+            <p className="video-attribution">
+              Fuente: {exercise.demoCredit}. Video externo vinculado al catálogo.
+            </p>
+          )}
           {alternative && (
             <p className="video-attribution">
               {alternative.title} · {alternative.creator}. Demostración externa;
