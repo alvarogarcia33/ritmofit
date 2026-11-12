@@ -9,7 +9,7 @@ Repositorio: <https://github.com/alvarogarcia33/ritmofit>
 - **Adelgazar:** rutina basada en el PDF del proyecto, con niveles, ejercicios, series y cardio según el programa.
 - **Tonificar:** rutina de fuerza y control organizada por días, con referencias y videos vinculados cuando están disponibles.
 - **Plan Personal:** una rutina propia por cuenta. Se arma seleccionando ejercicios de un catálogo por grupo muscular y asignándolos a días de lunes a domingo; se organiza en un ciclo inicial de cuatro semanas.
-- **Entrenamiento y seguimiento:** marcar series, usar el reloj de descanso, ver sesiones cumplidas, historial y progreso separados por plan.
+- **Entrenamiento y seguimiento:** marcar series, **registrar peso (kg) y repeticiones reales por cada serie**, recuperar las marcas anteriores del mismo ejercicio, usar el reloj de descanso y consultar el historial individual de cada plan.
 - **Recordatorios dentro de la app:** los pendientes se calculan con la fecha de inicio y zona horaria de la cuenta. No se envían emails ni notificaciones push cuando la app está cerrada.
 - **Administración:** las cuentas con rol `admin` pueden revisar usuarios, progreso y planes. «Plan Personal» es un filtro por usuario, no un plan público compartido.
 
@@ -19,8 +19,10 @@ Repositorio: <https://github.com/alvarogarcia33/ritmofit>
 2. En **Mis planes**, elegí Adelgazar o Tonificar. El progreso y la inscripción se guardan por separado para cada plan.
 3. Para crear tu rutina, elegí **Crear Plan Personal**. Seleccioná un día, abrí un grupo muscular y agregá ejercicios. Podés ordenarlos y quitarlos; dentro de un día no se repite el mismo ejercicio.
 4. Configurá de 1 a 10 series por ejercicio (3 al agregarlo). Los ejercicios por repeticiones empiezan en 10 y aceptan de 1 a 100; la plancha se configura por duración, de 1 a 3600 segundos, con 30 segundos iniciales. Cada día armado admite de 1 a 20 ejercicios; los días vacíos quedan libres.
-5. Confirmá para guardar y abrir el plan. En **Mi entrenamiento**, completá las series y seguí el reloj de descanso. Las sesiones, estrellas e historial se registran para esa cuenta y plan.
+5. Confirmá para guardar y abrir el plan. En **Mi entrenamiento**, completá las series y seguí el reloj de descanso. En cada ejercicio podés escribir los kilos y repeticiones realizadas **por serie** y pulsar **Guardar marcas**. El registro es opcional e independiente de la marca de serie completa; la referencia **Última vez** recupera la sesión anterior del mismo ejercicio, incluso si cambió de día en otra versión del Plan Personal. En ejercicios cronometrados no aparece el campo de repeticiones.
 6. En **Mi programa** consultá el calendario. En **Mi progreso** revisá el historial y los gráficos. En **Mi cuenta** ajustá perfil, fecha de inicio, descanso, hora, zona horaria y recordatorios.
+
+Las cargas se registran siempre en **kilogramos**, entre 0 y 1000 kg y hasta dos decimales; las repeticiones deben ser enteras entre 1 y 200. Se admite una marca solo de peso o solo de repeticiones. Los historiales anteriores sin estas medidas siguen funcionando: ningún valor se inventa o estima. Las marcas se muestran en el historial de sesiones y quedan incorporadas al archivo de una edición anterior del Plan Personal.
 
 El Plan Personal no inventa videos ni láminas de demostración: muestra indicaciones y señala cuando una referencia no está vinculada. **Se puede editar aun con entrenamientos registrados**: al guardar una versión modificada se archivan atómicamente la rutina anterior y todas sus sesiones (completas y parciales), con las fechas, cantidades y ejercicios originales. La edición inicia un ciclo nuevo de cuatro semanas el próximo lunes cuando existía progreso; las sesiones previas se consultan en **Mi progreso → Versiones anteriores**. El progreso activo vuelve a cero solo para esa nueva versión; no se borran los registros históricos. Cada edición sin cambios se ignora; ediciones obsoletas de otra pestaña se rechazan para evitar sobrescrituras.
 
@@ -101,7 +103,7 @@ El contenedor usa Node 22 y respeta `PORT`. La ruta de salud sin autenticación 
 
 La persistencia de Fit está en MySQL y se implementa con `mysql2` en `server/fit-db.ts` y `server/fit-plan-db.ts`. Al iniciar, el servidor agrega de manera idempotente las tablas y columnas faltantes y mantiene la versión del esquema; los datos de usuarios no se deben borrar para desplegar una actualización. Entre las tablas están usuarios, sesiones, progreso legado, planes, inscripciones, plan activo, progreso por plan y `fit_personal_plan_versions` (ediciones anteriores de rutinas personales con instantánea de sus sesiones).
 
-**Antes de desplegar la edición por versiones:** respaldá la base real y probá con MySQL de staging aislado. La inicialización agrega la tabla `fit_personal_plan_versions` (esquema de planes v3) sin eliminar tablas existentes. Al editar un plan con actividad, el servidor archiva su contenido y progreso dentro de una transacción antes de liberar los identificadores de sesiones de la nueva edición. No ejecutes cambios manuales sobre `fit_plan_progress` sin verificar la existencia de los archivos históricos.
+**Antes de desplegar la edición por versiones y las marcas de fuerza:** respaldá la base real y probá con MySQL de staging aislado. La inicialización agrega la tabla `fit_personal_plan_versions` y la columna JSON nullable `set_performance` a `fit_progress` y `fit_plan_progress` (esquema de planes v4; esquema Fit v2) sin eliminar tablas existentes. Al editar un plan con actividad, el servidor archiva su contenido y progreso dentro de una transacción antes de liberar los identificadores de sesiones de la nueva edición. No ejecutes cambios manuales sobre `fit_plan_progress` sin verificar la existencia de los archivos históricos.
 
 El código también conserva configuración Drizzle heredada de la plantilla. Los planes de entrenamiento usan las rutinas SQL y el inicializador de Fit; no ejecutes `pnpm db:push` como sustituto de una migración revisada de Fit. Respaldá la base antes de cambios de esquema.
 
@@ -129,6 +131,8 @@ client/public/                 PDF, portadas, referencias y recursos estáticos
 shared/routine.ts              Ejercicios y rutina base Adelgazar
 shared/programs.ts             Tipo y catálogo de planes, calendario y reglas de progreso
 shared/exercise-library.ts     Catálogo por músculo y constructor validado del Plan Personal
+shared/set-performance.ts       Validación de marcas reales por serie y equivalencia entre versiones
+client/src/lib/strength.ts      Consulta de las últimas marcas del mismo ejercicio
 server/fit.ts                  Autenticación, perfiles y API Fit
 server/fit-plans.ts            API de planes, inscripciones, progreso y filtros admin
 server/fit-db.ts               Usuarios, sesiones y datos base en MySQL
