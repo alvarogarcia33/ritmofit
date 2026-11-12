@@ -290,3 +290,48 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Exact observed values remain available alongside charts and tooltips. */
+.strength-record-table {
+  margin-top: 13px;
+  border-top: 1px solid #e6eeea;
+  padding-top: 12px;
+}
+.strength-record-table summary {
+  color: #246b60;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+  line-height: 1.6;
+}
+.strength-record-table summary:focus-visible {
+  outline: 2px solid #238b83;
+  outline-offset: 3px;
+}
+.strength-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 11px;
+}
+.strength-record-table table {
+  width: 100%;
+  min-width: 360px;
+  border-collapse: collapse;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.strength-record-table th,
+.strength-record-table td {
+  padding: 8px 6px;
+  font-size: 10px;
+  border-bottom: 1px solid #e7efeb;
+  white-space: nowrap;
+  color: #46675f;
+}
+.strength-record-table thead th {
+  font-weight: 800;
+  color: #2a5c51;
+}
+.strength-record-table tbody th {
+  font-weight: 650;
+}
