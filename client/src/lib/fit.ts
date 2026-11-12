@@ -1,6 +1,6 @@
 import type { Level } from "@shared/routine";
 import type { SetPerformance } from "@shared/set-performance";
-import { planDays, type TrainingPlan } from "@shared/programs";
+import { MAX_TRAINING_WEEK, planDays, type TrainingPlan } from "@shared/programs";
 
 export type FitUser = {
   id: number;
@@ -135,6 +135,11 @@ export function currentProgramDay(user: FitUser | null, plan?: TrainingPlan) {
   );
   if (difference < 0) return { week: 1, day: 1 };
   const weeks = plan?.weeks ?? 4;
+  if (plan?.continuous)
+    return {
+      week: Math.min(MAX_TRAINING_WEEK, Math.floor(difference / 7) + 1),
+      day: (difference % 7) + 1,
+    };
   if (difference > weeks * 7 - 1)
     return {
       week: weeks,
@@ -155,7 +160,11 @@ export function overdueDays(
     hour12: false,
   }).format(new Date());
   const items: { week: number; day: number; date: string; key: string }[] = [];
-  for (let week = 1; week <= (plan?.weeks ?? 4); week++) {
+  const currentWeek = currentProgramDay(user, plan).week;
+  // Never enumerate an entire unlimited program: only recently overdue sessions.
+  const firstWeek = plan?.continuous ? Math.max(1, currentWeek - 3) : 1;
+  const lastWeek = plan?.continuous ? currentWeek : (plan?.weeks ?? 4);
+  for (let week = firstWeek; week <= lastWeek; week++) {
     for (const day of plan
       ? planDays(plan, week).map(d => d.day)
       : [1, 2, 3, 4, 5, 6]) {

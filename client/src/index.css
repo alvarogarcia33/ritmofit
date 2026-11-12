@@ -3995,3 +3995,35 @@ input:disabled {
   white-space: normal;
   overflow-wrap: anywhere;
 }
+
+/* Ventanas de semanas para planes sin fecha de fin. */
+.week-nav-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.week-nav-controls > span {
+  font-size: 11px;
+  color: #52756e;
+  font-weight: 650;
+}
+.week-nav-controls > button {
+  padding: 8px 12px;
+  font-size: 10px;
+  min-height: 34px;
+}
+.program-weeks + .week-nav-controls {
+  margin-top: 12px;
+}
+@media (max-width: 660px) {
+  .week-nav-controls {
+    justify-content: flex-start;
+    width: 100%;
+  }
+  .week-nav-controls > button {
+    flex: 1 1 130px;
+  }
+}

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { buildPersonalPlan } from "@shared/exercise-library";
 import {
   currentProgramDay,
   dayDate,
@@ -72,6 +73,26 @@ describe("Calendario de la única rutina del PDF", () => {
       "w1-d3",
     ]);
   });
+  it("avanza más allá de la cuarta semana en un plan continuo, sin avisos infinitos", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-12-10T16:00:00Z"));
+    const plan = buildPersonalPlan(
+      "personal-12345678-1234-4234-8234-123456789abc",
+      {
+        duration: "continuous",
+        days: [{
+          day: 1,
+          exercises: [{ exerciseId: "press-plano-barra", sets: 3, target: 10 }],
+        }],
+      }
+    );
+    expect(currentProgramDay(user, plan)).toEqual({ week: 6, day: 4 });
+    expect(overdueDays(user, [], plan).map(item => item.key)).toEqual([
+      "w3-d1", "w4-d1", "w5-d1", "w6-d1",
+    ]);
+    expect(dayKey(100, 1)).toBe("w100-d1");
+  });
+
   it("propone un lunes como fecha de inicio", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-11-05T16:00:00Z"));

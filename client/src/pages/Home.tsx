@@ -50,6 +50,9 @@ import {
   planConfig,
   planDays,
   planTotalSessions,
+  planAllowsWeek,
+  planVisibleWeeks,
+  MAX_TRAINING_WEEK,
   plannedExercises,
 } from "@shared/programs";
 import { PERSONAL_PLAN_ID_PREFIX } from "@shared/exercise-library";
@@ -101,12 +104,12 @@ export default function Home() {
       params = new URLSearchParams(search);
     const w = Number(params.get("semana")),
       d = Number(params.get("dia"));
-    setWeek(w >= 1 && w <= plan.weeks ? w : current.week);
+    setWeek(planAllowsWeek(plan, w) ? w : current.week);
     setDay(d >= 1 && d <= 7 ? d : current.day);
     setTraining(false);
     setExerciseClock(null);
     setVideo(null);
-  }, [user?.id, user?.startDate, planId, plan.weeks, search]);
+  }, [user?.id, user?.startDate, planId, plan.weeks, plan.continuous, search]);
   const key = dayKey(week, day),
     savedRecord = progress.find(p => p.dayKey === key);
   const selectedLevel = user?.level ?? guestLevel,
@@ -405,15 +408,26 @@ export default function Home() {
             <Target size={20} />
           </span>
           <div>
-            <span>Este plan completado</span>
+            <span>{plan.continuous ? "Constancia de esta semana" : "Este plan completado"}</span>
             <strong>
               {totalCompleted}
-              <small> / {totalSessions} sesiones</small>
+              <small>
+                {plan.continuous
+                  ? " sesiones acumuladas"
+                  : ` / ${totalSessions} sesiones`}
+              </small>
             </strong>
           </div>
           <div className="mini-track">
             <i
-              style={{ width: `${(totalCompleted / totalSessions) * 100}%` }}
+              style={{
+                width: `${Math.min(
+                  100,
+                  plan.continuous
+                    ? (weekCompleted / (weeklyGoal || 1)) * 100
+                    : (totalCompleted / (totalSessions || 1)) * 100
+                )}%`,
+              }}
             />
           </div>
         </div>
@@ -467,7 +481,9 @@ export default function Home() {
                   {plan.title.toUpperCase()}
                 </span>
                 <span>
-                  SEMANA {week} DE {plan.weeks}
+                  {plan.continuous
+                    ? `SEMANA ${week} · PLAN CONTINUO`
+                    : `SEMANA ${week} DE ${plan.weeks}`}
                 </span>
               </div>
               <span className="hero-day">
@@ -530,11 +546,11 @@ export default function Home() {
                 <Dumbbell size={42} strokeWidth={1.35} />
               </div>
               <div className="hero-program-mark">
-                {plan.weeks}
+                {plan.continuous ? "∞" : plan.weeks}
                 <span>
-                  SEMANAS
+                  {plan.continuous ? "PLAN" : "SEMANAS"}
                   <br />
-                  DE SEGUIMIENTO
+                  {plan.continuous ? "CONTINUO" : "DE SEGUIMIENTO"}
                 </span>
               </div>
               <span className="hero-art-caption">FUERZA + CONSTANCIA</span>
@@ -560,12 +576,42 @@ export default function Home() {
                 }}
                 className="week-select"
               >
-                {Array.from({ length: plan.weeks }, (_, i) => i + 1).map(w => (
+                {planVisibleWeeks(
+                  plan,
+                  currentProgramDay(user, plan).week,
+                  week
+                ).map(w => (
                   <option key={w} value={w}>
                     Semana {w}
                   </option>
                 ))}
               </select>
+              {plan.continuous && (
+                <div className="week-nav-controls" aria-label="Navegación por semanas">
+                  <button
+                    type="button"
+                    className="button secondary"
+                    disabled={week <= 1}
+                    onClick={() => {
+                      setWeek(current => Math.max(1, current - 1));
+                      setTraining(false);
+                    }}
+                  >
+                    Semana anterior
+                  </button>
+                  <button
+                    type="button"
+                    className="button secondary"
+                    disabled={week >= MAX_TRAINING_WEEK}
+                    onClick={() => {
+                      setWeek(current => Math.min(MAX_TRAINING_WEEK, current + 1));
+                      setTraining(false);
+                    }}
+                  >
+                    Semana siguiente
+                  </button>
+                </div>
+              )}
             </div>
             <div className="day-selector">
               {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map(

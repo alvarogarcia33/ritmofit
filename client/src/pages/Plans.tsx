@@ -242,10 +242,15 @@ export default function Plans() {
                 </span>
                 <span>
                   <Star size={16} />
-                  {planTotalSessions(personalPlan.plan)} sesiones de seguimiento
+                  {personalPlan.plan.continuous
+                    ? "Entrenamiento continuo"
+                    : `${planTotalSessions(personalPlan.plan)} sesiones de seguimiento`}
                 </span>
               </div>
               <small>
+                {personalPlan.plan.continuous
+                  ? "Sin fecha de fin · las semanas se repiten y tus registros se acumulan."
+                  : `${personalPlan.plan.weeks} semanas de seguimiento.`}{" "}
                 No se comparte con otras cuentas. Administración puede consultar
                 tu seguimiento; tus registros quedan asociados a esta rutina.
               </small>

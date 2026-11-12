@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   ArrowRight,
@@ -15,6 +15,7 @@ import { FitLayout } from "@/components/FitLayout";
 import { VideoModal } from "@/components/FitWidgets";
 import { useFit } from "@/contexts/FitContext";
 import {
+  currentProgramDay,
   dateLabel,
   dayDate,
   dayKey,
@@ -27,7 +28,9 @@ import {
   planConfig,
   planDays,
   planTotalSessions,
+  planVisibleWeeks,
   plannedExercises,
+  MAX_TRAINING_WEEK,
 } from "@shared/programs";
 
 type Demo = Pick<
@@ -37,6 +40,11 @@ type Demo = Pick<
 export default function Program() {
   const { planUser: user, plan, planId, enrollment, progress } = useFit();
   const [video, setVideo] = useState<Demo | null>(null);
+  const [weekOffset, setWeekOffset] = useState(0);
+  useEffect(() => setWeekOffset(0), [planId, user?.id]);
+  const currentWeek = currentProgramDay(user, plan).week;
+  const focusWeek = Math.max(1, Math.min(MAX_TRAINING_WEEK, currentWeek + weekOffset));
+  const visibleWeeks = planVisibleWeeks(plan, currentWeek, focusWeek);
   const closeVideo = useCallback(() => setVideo(null), []);
   const pending = user && enrollment ? overdueDays(user, progress, plan) : [];
   const level = user?.level ?? "beginner";
@@ -87,11 +95,15 @@ export default function Program() {
           <div className="program-details">
             <span>
               <CalendarDays size={16} />
-              {plan.weeks} semanas de seguimiento
+              {plan.continuous
+                ? "Duración continua"
+                : `${plan.weeks} semanas de seguimiento`}
             </span>
             <span>
               <Dumbbell size={16} />
-              {planTotalSessions(plan)} sesiones
+              {plan.continuous
+                ? "Sesiones sin fecha límite"
+                : `${planTotalSessions(plan)} sesiones`}
             </span>
             <span>
               <Sparkles size={16} />
@@ -190,8 +202,33 @@ export default function Program() {
           </div>
         </div>
       )}
+      {plan.continuous && (
+        <div className="week-nav-controls" role="group" aria-label="Navegar calendario continuo">
+          <button
+            type="button"
+            className="button secondary"
+            disabled={focusWeek <= 1}
+            onClick={() => setWeekOffset(value => Math.max(1 - currentWeek, value - 5))}
+          >
+            Ver semanas anteriores
+          </button>
+          <span>Semanas {visibleWeeks[0]}–{visibleWeeks.at(-1)}</span>
+          <button
+            type="button"
+            className="button secondary"
+            disabled={focusWeek >= MAX_TRAINING_WEEK - 1}
+            onClick={() =>
+              setWeekOffset(value =>
+                Math.min(MAX_TRAINING_WEEK - currentWeek, value + 5)
+              )
+            }
+          >
+            Ver semanas siguientes
+          </button>
+        </div>
+      )}
       <div className="program-weeks">
-        {Array.from({ length: plan.weeks }, (_, i) => i + 1).map(week => {
+        {visibleWeeks.map(week => {
           const days = planDays(plan, week);
           return (
             <section className="program-week" key={week}>

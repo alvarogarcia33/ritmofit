@@ -30,6 +30,7 @@ import { api } from "@/lib/fit";
 import {
   EXERCISE_MUSCLE_GROUPS,
   personalPlanDraftFromPlan,
+  type PersonalPlanDuration,
   type ExerciseLibraryItem,
   type PersonalDaySelection,
   type PersonalPlanDraft,
@@ -46,7 +47,7 @@ const WEEKDAYS = [
   "Sábado",
   "Domingo",
 ];
-const EMPTY_DRAFT: PersonalPlanDraft = { days: [] };
+const EMPTY_DRAFT: PersonalPlanDraft = { days: [], duration: 4 };
 const EXERCISES_BY_ID = new Map(
   EXERCISE_MUSCLE_GROUPS.flatMap(group =>
     group.exercises.map(exercise => [exercise.id, exercise] as const)
@@ -88,7 +89,7 @@ export default function PersonalPlanBuilder() {
         setDraft(hydrated);
         setSelectedDay(hydrated.days[0]?.day ?? 1);
       } else {
-        setDraft({ days: [] });
+        setDraft({ days: [], duration: 4 });
         setSelectedDay(1);
       }
     } catch (error) {
@@ -245,8 +246,8 @@ export default function PersonalPlanBuilder() {
     }
 
     const changed = plan
-      ? JSON.stringify(draft.days) !==
-        JSON.stringify(personalPlanDraftFromPlan(plan).days)
+      ? JSON.stringify(draft) !==
+        JSON.stringify(personalPlanDraftFromPlan(plan))
       : true;
     if (plan && hasProgress && changed) {
       const confirmed = window.confirm(
@@ -299,7 +300,10 @@ export default function PersonalPlanBuilder() {
                 <CalendarDays size={16} /> Lunes a domingo
               </span>
               <span>
-                <Clock3 size={16} /> 4 semanas de seguimiento
+                <Clock3 size={16} />{" "}
+                {draft.duration === "continuous"
+                  ? "Entrenamiento continuo"
+                  : `${draft.duration ?? 4} semanas de seguimiento`}
               </span>
               <span className="pp-color-mark">TEAL · TU SELECCIÓN</span>
             </div>
@@ -347,6 +351,45 @@ export default function PersonalPlanBuilder() {
                 </span>
               )}
             </div>
+
+            <section className="pp-duration" aria-label="Duración de tu Plan Personal">
+              <div className="pp-panel-heading">
+                <div>
+                  <span className="pp-eyebrow">DURACIÓN DEL PLAN</span>
+                  <h3>¿Por cuánto tiempo querés seguir esta rutina?</h3>
+                  <p>Podés cambiarla más adelante conservando el historial anterior.</p>
+                </div>
+              </div>
+              <div className="pp-duration-options" role="group" aria-label="Elegí la duración">
+                {([
+                  { value: 4, title: "4 semanas" },
+                  { value: 8, title: "8 semanas" },
+                  { value: 12, title: "12 semanas" },
+                  { value: "continuous", title: "Sin fecha de fin" },
+                ] as const).map(option => (
+                  <button
+                    key={String(option.value)}
+                    type="button"
+                    className={`pp-duration-option ${(draft.duration ?? 4) === option.value ? "is-selected" : ""}`}
+                    aria-pressed={(draft.duration ?? 4) === option.value}
+                    onClick={() =>
+                      setDraft(current => ({
+                        ...current,
+                        duration: option.value as PersonalPlanDuration,
+                      }))
+                    }
+                  >
+                    {option.title}
+                  </button>
+                ))}
+              </div>
+              {draft.duration === "continuous" && (
+                <p className="pp-panel-hint">
+                  Tu semana se repite y cada entrenamiento conserva su fecha y
+                  progreso. El programa no finaliza automáticamente.
+                </p>
+              )}
+            </section>
 
             <div
               className="pp-week-picker"

@@ -16,6 +16,8 @@ export type TrainingPlan = {
   color: string;
   coverImage: string;
   weeks: number;
+  /** Only personal routines may repeat indefinitely; weeks remains the template length. */
+  continuous?: boolean;
   mode: "supersets" | "straight";
   restSeconds: number;
   published: boolean;
@@ -568,6 +570,31 @@ export function replacePlanExerciseMediaFromDefault(
   };
 }
 
+/** Database day keys allow w1..w9999; never attempt to render that full range. */
+export const MAX_TRAINING_WEEK = 9999;
+export function planAllowsWeek(plan: TrainingPlan, week: number): boolean {
+  return Number.isSafeInteger(week) && week >= 1 &&
+    week <= (plan.continuous ? MAX_TRAINING_WEEK : plan.weeks);
+}
+
+/** Small, bounded window for open-ended programs, including the selected week. */
+export function planVisibleWeeks(
+  plan: TrainingPlan,
+  currentWeek: number,
+  selectedWeek = currentWeek,
+  count = 5
+): number[] {
+  if (!plan.continuous)
+    return Array.from({ length: plan.weeks }, (_, i) => i + 1);
+  const center = Math.min(
+    MAX_TRAINING_WEEK,
+    Math.max(1, selectedWeek)
+  );
+  const start = Math.max(1, center - (count - 2));
+  const end = Math.min(MAX_TRAINING_WEEK, start + count - 1);
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+}
+
 export function planDays(plan: TrainingPlan, week: number): RoutineDay[] {
   return plan.routine[week <= 2 ? "first" : "second"];
 }
@@ -618,7 +645,8 @@ export function requiredPlanSets(
     )
   );
 }
-export function planTotalSessions(plan: TrainingPlan): number {
+export function planTotalSessions(plan: TrainingPlan): number | null {
+  if (plan.continuous) return null;
   return Array.from(
     { length: plan.weeks },
     (_, i) => planDays(plan, i + 1).length

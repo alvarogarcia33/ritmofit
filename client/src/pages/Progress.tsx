@@ -22,7 +22,13 @@ import {
 import { FitLayout } from "@/components/FitLayout";
 import { EmptyState } from "@/components/FitWidgets";
 import { useFit } from "@/contexts/FitContext";
-import { api, dateLabel, dayDate, type PersonalPlanArchive } from "@/lib/fit";
+import {
+  api,
+  currentProgramDay,
+  dateLabel,
+  dayDate,
+  type PersonalPlanArchive,
+} from "@/lib/fit";
 import { planDays, planTotalSessions } from "@shared/programs";
 import { formatSetMark, readSetPerformance, setKeyExercise } from "@shared/set-performance";
 import type { RoutineDay } from "@shared/routine";
@@ -90,11 +96,34 @@ export default function ProgressPage() {
   );
   const totalSessions = planTotalSessions(plan);
   const completed = progress.filter(p => p.completedAt).length;
+  const currentWeek = currentProgramDay(user, plan).week;
+  const recentWeeks = Array.from(
+    { length: Math.min(4, currentWeek) },
+    (_, i) => currentWeek - Math.min(4, currentWeek) + i + 1
+  );
+  const recentWeekKeys = new Set(recentWeeks);
+  const recentCompleted = progress.filter(record => {
+    const match = /^w(\d{1,4})-d[1-7]$/.exec(record.dayKey);
+    return record.completedAt && match && recentWeekKeys.has(Number(match[1]));
+  }).length;
+  const recentGoal = recentWeeks.reduce(
+    (sum, week) => sum + planDays(plan, week).length,
+    0
+  );
+  const completedPercent = plan.continuous
+    ? Math.round((recentCompleted / (recentGoal || 1)) * 100)
+    : Math.round((completed / (totalSessions || 1)) * 100);
   const totalSets = progress.reduce(
     (sum, p) => sum + p.completedSets.length,
     0
   );
-  const chart = Array.from({ length: plan.weeks }, (_, i) => i + 1).map(
+  const chartWeeks = plan.continuous
+    ? Array.from(
+        { length: Math.min(8, currentWeek) },
+        (_, i) => Math.max(1, currentWeek - 7) + i
+      )
+    : Array.from({ length: plan.weeks }, (_, i) => i + 1);
+  const chart = chartWeeks.map(
     week => ({
       name: `Semana ${week}`,
       sesiones: progress.filter(
@@ -106,8 +135,15 @@ export default function ProgressPage() {
     })
   );
   const history = [...progress]
-    .sort((a, b) => b.dayKey.localeCompare(a.dayKey))
-    .filter(p => p.completedSets.length || p.cardioDone || p.warmupDone);
+    .sort((a, b) => {
+      const parse = (key: string) => /^w(\d+)-d(\d)$/.exec(key);
+      const left = parse(a.dayKey);
+      const right = parse(b.dayKey);
+      return left && right
+        ? Number(right[1]) - Number(left[1]) || Number(right[2]) - Number(left[2])
+        : b.dayKey.localeCompare(a.dayKey);
+    })
+    .filter(p => p.completedSets.length || p.cardioDone || p.warmupDone || p.setPerformance?.length);
   return (
     <FitLayout title="Mi progreso">
       <section className="page-intro">
@@ -144,7 +180,7 @@ export default function ProgressPage() {
                 <span>Sesiones cumplidas</span>
                 <strong>
                   {completed}
-                  <small> / {totalSessions}</small>
+                  <small>{plan.continuous ? " acumuladas" : ` / ${totalSessions}`}</small>
                 </strong>
               </div>
             </div>
@@ -165,10 +201,12 @@ export default function ProgressPage() {
                 <Award size={21} />
               </span>
               <div>
-                <span>Cumplimiento total</span>
+                <span>{plan.continuous ? "Constancia reciente" : "Cumplimiento total"}</span>
                 <strong>
-                  {Math.round((completed / totalSessions) * 100)}
-                  <small>% del programa</small>
+                  {completedPercent}
+                  <small>
+                    {plan.continuous ? "% últimas 4 semanas" : "% del programa"}
+                  </small>
                 </strong>
               </div>
             </div>
@@ -206,10 +244,7 @@ export default function ProgressPage() {
                       domain={[
                         0,
                         Math.max(
-                          ...Array.from(
-                            { length: plan.weeks },
-                            (_, i) => planDays(plan, i + 1).length
-                          )
+                          ...chartWeeks.map(week => planDays(plan, week).length)
                         ),
                       ]}
                       allowDecimals={false}
@@ -414,7 +449,13 @@ export default function ProgressPage() {
                           record.warmupDone ||
                           record.cardioDone
                         )
-                        .sort((a, b) => b.dayKey.localeCompare(a.dayKey));
+                        .sort((a, b) => {
+                          const left = /^w(\d+)-d(\d)$/.exec(a.dayKey);
+                          const right = /^w(\d+)-d(\d)$/.exec(b.dayKey);
+                          return left && right
+                            ? Number(right[1]) - Number(left[1]) || Number(right[2]) - Number(left[2])
+                            : b.dayKey.localeCompare(a.dayKey);
+                        });
                       return (
                         <div key={edition.version} className="history-card">
                           <button
@@ -445,7 +486,7 @@ export default function ProgressPage() {
                             <div className="history-list">
                               {records.length ? (
                                 records.map(record => {
-                                  const match = /^w(\d+)-d([1-7])$/.exec(record.dayKey);
+                                  const match = /^w([1-9]\d{0,3})-d([1-7])$/.exec(record.dayKey);
                                   if (!match) return null;
                                   const week = Number(match[1]);
                                   const day = Number(match[2]);

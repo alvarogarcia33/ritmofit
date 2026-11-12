@@ -7,6 +7,8 @@ export const PERSONAL_PLAN_COVER = "/exercises/program-banner.png";
 export const PERSONAL_PLAN_COLOR = "#238b83";
 export const PERSONAL_PLAN_REST_SECONDS = 90;
 export const PERSONAL_PLAN_WEEKS = 4;
+export const PERSONAL_PLAN_DURATIONS = [4, 8, 12] as const;
+export type PersonalPlanDuration = 4 | 8 | 12 | "continuous";
 
 export type ExerciseTargetUnit = "repeticiones" | "segundos";
 export type ExerciseLibraryItem = {
@@ -31,7 +33,10 @@ export type PersonalDaySelection = {
   day: number;
   exercises: PersonalExerciseSelection[];
 };
-export type PersonalPlanDraft = { days: PersonalDaySelection[] };
+export type PersonalPlanDraft = {
+  days: PersonalDaySelection[];
+  duration?: PersonalPlanDuration;
+};
 
 const repsTip =
   "Usa una carga que puedas controlar con buena técnica. Mantén el movimiento fluido y detente si sientes dolor.";
@@ -459,6 +464,16 @@ export function buildPersonalPlan(
     throw new PersonalPlanInputError(
       "Agrega ejercicios a por lo menos un día de la semana."
     );
+  const requestedDuration =
+    value.duration === undefined ? PERSONAL_PLAN_WEEKS : value.duration;
+  if (
+    requestedDuration !== "continuous" &&
+    !PERSONAL_PLAN_DURATIONS.some(weeks => weeks === requestedDuration)
+  )
+    throw new PersonalPlanInputError(
+      "Elegí una duración de 4, 8 o 12 semanas, o continua."
+    );
+  const duration = requestedDuration as PersonalPlanDuration;
   const normalized = value.days.map(normalizeDay);
   if (new Set(normalized.map(day => day.day)).size !== normalized.length)
     throw new PersonalPlanInputError("No puedes repetir el mismo día.");
@@ -515,7 +530,8 @@ export function buildPersonalPlan(
       "Una rutina armada por ti con ejercicios elegidos por grupo muscular.",
     color: PERSONAL_PLAN_COLOR,
     coverImage: PERSONAL_PLAN_COVER,
-    weeks: PERSONAL_PLAN_WEEKS,
+    weeks: duration === "continuous" ? PERSONAL_PLAN_WEEKS : duration,
+    ...(duration === "continuous" ? { continuous: true } : {}),
     mode: "straight",
     restSeconds: PERSONAL_PLAN_REST_SECONDS,
     published: true,
@@ -554,7 +570,14 @@ export function personalPlanDraftFromPlan(
       };
     }),
   }));
-  return { days };
+  return {
+    days,
+    duration: plan.continuous
+      ? "continuous"
+      : plan.weeks === 8 || plan.weeks === 12
+        ? plan.weeks
+        : 4,
+  };
 }
 
 export function personalPlanAdminFilterOption(): TrainingPlan {

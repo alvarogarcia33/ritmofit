@@ -5,6 +5,7 @@ import {
   LEGACY_PLAN_ID,
   planConfig,
   planDay,
+  planAllowsWeek,
   requiredPlanSets,
   type PlanEnrollment,
   type TrainingPlan,
@@ -483,6 +484,13 @@ export function validateTrainingPlan(value: unknown): TrainingPlan {
   };
   if (!/^#[0-9A-Fa-f]{6}$/.test(plan.color))
     invalid("color debe ser un color hexadecimal de seis dígitos");
+  if (value.continuous !== undefined) {
+    if (value.continuous !== true || !plan.id.startsWith(PERSONAL_PLAN_ID_PREFIX))
+      invalid("Solo un Plan Personal puede tener duración continua");
+    if (plan.weeks !== 4)
+      invalid("El plan continuo utiliza una plantilla de cuatro semanas");
+    plan.continuous = true;
+  }
   if (sourceUrl !== undefined) plan.sourceUrl = sourceUrl;
   return plan;
 }
@@ -509,6 +517,7 @@ export function planStructureSignature(plan: TrainingPlan): string {
     }));
   return json({
     weeks: plan.weeks,
+    continuous: Boolean(plan.continuous),
     mode: plan.mode,
     first: section(plan.routine.first),
     second: section(plan.routine.second),
@@ -742,11 +751,11 @@ function parsePlanDayKey(
   plan: TrainingPlan,
   fail: FitPlanRouteDeps["fail"]
 ): { week: number; day: number } {
-  const match = /^w(\d{1,2})-d([1-7])$/.exec(dayKey);
+  const match = /^w([1-9]\d{0,3})-d([1-7])$/.exec(dayKey);
   if (!match) fail(400, "dayKey no es válido para este plan");
   const week = Number(match[1]);
   const day = Number(match[2]);
-  if (week < 1 || week > plan.weeks || !planDay(plan, week, day))
+  if (!planAllowsWeek(plan, week) || !planDay(plan, week, day))
     fail(400, "El día no está programado en este plan");
   return { week, day };
 }
