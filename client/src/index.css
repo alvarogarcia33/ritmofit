@@ -4062,3 +4062,234 @@ input:disabled {
   color: #657d79;
   font-size: 10px;
 }
+
+/* Ritmo Fit · entrenamiento móvil con un toque por serie */
+.exercise-measurements > summary {
+  cursor: pointer;
+  list-style: none;
+  width: 100%;
+  min-height: 36px;
+  outline-offset: 4px;
+}
+.exercise-measurements > summary::-webkit-details-marker {
+  display: none;
+}
+.exercise-measurements > summary::after {
+  content: "⌄";
+  color: #19766f;
+  font-size: 18px;
+  line-height: 1;
+  margin-left: auto;
+  align-self: center;
+  transform: rotate(0deg);
+  transition: transform 160ms ease;
+}
+.exercise-measurements[open] > summary::after {
+  transform: rotate(180deg);
+}
+.exercise-mark-status {
+  font-size: 10px;
+  color: #54756e;
+  font-weight: 650;
+}
+.exercise-measurements > summary:focus-visible {
+  outline: 2px solid #238b83;
+}
+.exercise-measurements[open] > summary {
+  padding-bottom: 11px;
+  border-bottom: 1px solid #d6e6e2;
+  margin-bottom: 12px;
+}
+.mobile-timer-toggle,
+.mobile-timer-panel-heading {
+  display: none;
+}
+@media (max-width: 700px) {
+  .exercise-row {
+    scroll-margin-top: 76px;
+  }
+  .exercise-controls {
+    justify-content: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .exercise-controls .set-buttons {
+    flex: 1 1 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+    order: 2;
+  }
+  .exercise-controls .set-button {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    font-size: 14px;
+    font-weight: 750;
+    border-width: 2px;
+    touch-action: manipulation;
+  }
+  .exercise-controls .set-button:focus-visible,
+  .exercise-done-button:focus-visible {
+    outline: 2px solid #238b83;
+    outline-offset: 3px;
+  }
+  .exercise-controls .exercise-done-button {
+    min-height: 44px;
+    min-width: 124px;
+    order: 1;
+    margin: 0 0 0 auto;
+    font-weight: 700;
+    font-size: 11px;
+    justify-content: flex-end;
+    touch-action: manipulation;
+  }
+  .exercise-controls .sets-label {
+    display: block;
+    width: auto;
+    flex: 1;
+    order: 0;
+    font-size: 10px;
+    color: #6c7b7d;
+    letter-spacing: .5px;
+    font-weight: 700;
+  }
+  .exercise-measurements {
+    margin-top: 3px;
+  }
+  .exercise-measurements-heading {
+    justify-content: flex-start;
+    align-items: center;
+    gap: 7px 10px;
+  }
+  .exercise-measurements-heading > strong {
+    font-size: 11px;
+  }
+  .exercise-measurements-heading .exercise-last-mark {
+    flex: 1 0 100%;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .exercise-measurements[open] .exercise-last-mark {
+    overflow: visible;
+    white-space: normal;
+  }
+  .exercise-mark-line input {
+    min-height: 44px;
+  }
+  .exercise-measurements-footer small {
+    font-size: 10px;
+  }
+  .dashboard-columns {
+    padding-bottom: calc(92px + env(safe-area-inset-bottom));
+  }
+  .mobile-timer-toggle {
+    position: fixed;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    right: 12px;
+    left: 12px;
+    width: auto;
+    max-width: 460px;
+    margin-left: auto;
+    margin-right: auto;
+    min-height: 54px;
+    padding: 10px 15px;
+    border: 1px solid #8cc8bb;
+    border-radius: 14px;
+    background: #f1faf6;
+    color: #195e55;
+    font: 700 12px "Manrope", sans-serif;
+    text-align: left;
+    box-shadow: 0 7px 25px #082d2533;
+    z-index: 80;
+    touch-action: manipulation;
+  }
+  .mobile-timer-toggle.is-running {
+    background: #dff6eb;
+    border-color: #238b83;
+  }
+  .mobile-timer-toggle > span {
+    flex: 1;
+  }
+  .mobile-timer-count {
+    font-size: 18px;
+    font-variant-numeric: tabular-nums;
+  }
+  .mobile-timer-toggle:focus-visible {
+    outline: 3px solid #238b83;
+    outline-offset: 2px;
+  }
+  #session-clock.mobile-timer-panel {
+    display: none;
+    position: fixed;
+    z-index: 79;
+    bottom: calc(78px + env(safe-area-inset-bottom));
+    left: 12px;
+    right: 12px;
+    max-width: 460px;
+    margin-left: auto;
+    margin-right: auto;
+    max-height: min(70dvh, 520px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid #c5e3dc;
+    border-radius: 16px;
+    background: white;
+    box-shadow: 0 14px 36px #112c2940;
+  }
+  #session-clock.mobile-timer-panel.is-open {
+    display: block;
+  }
+  .mobile-timer-panel-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 13px;
+    background: #ebf7f2;
+    color: #24675d;
+    font-size: 12px;
+  }
+  .mobile-timer-panel-heading button {
+    display: grid;
+    place-items: center;
+    min-width: 36px;
+    min-height: 36px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+  }
+  .mobile-timer-panel .timer-card {
+    border: 0;
+    border-radius: 0;
+    padding: 12px 16px;
+  }
+  .mobile-timer-panel .timer-tabs button,
+  .mobile-timer-panel .timer-start,
+  .mobile-timer-panel .reset-timer {
+    min-height: 44px;
+    font-size: 12px;
+  }
+  .mobile-timer-panel .rest-duration-picker {
+    padding: 0 16px 15px;
+  }
+  .mobile-timer-panel .timer-hint {
+    font-size: 11px;
+    line-height: 1.6;
+  }
+  .mobile-timer-panel .timer-value {
+    font-size: 43px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .exercise-measurements > summary::after {
+    transition: none;
+  }
+}
