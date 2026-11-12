@@ -154,7 +154,7 @@ export function VideoModal({
 }: {
   exercise: Pick<
     Exercise,
-    "name" | "videoUrl" | "tips" | "videoAlternative" | "sourceImage" | "demoCredit"
+    "name" | "videoUrl" | "tips" | "videoAlternative" | "sourceImage" | "demoCredit" | "demoGuide"
   > | null;
   onClose: () => void;
 }) {
