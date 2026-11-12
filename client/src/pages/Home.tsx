@@ -281,7 +281,8 @@ export default function Home() {
     for (const setKey of ids) {
       const raw = markDrafts[setKey];
       const weightText = raw?.weightKg.trim() ?? "";
-      const repsText = exercise.seconds ? "" : (raw?.reps.trim() ?? "");
+      const isTimed = Boolean(exercise.seconds || /segundos/i.test(exercise.reps ?? ""));
+      const repsText = isTimed ? "" : (raw?.reps.trim() ?? "");
       if (!weightText && !repsText) continue;
       const weightKg = weightText ? Number(weightText) : null;
       const reps = repsText ? Number(repsText) : null;
