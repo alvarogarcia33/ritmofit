@@ -381,6 +381,9 @@ function AdminWorkspace() {
           </p>
         </div>
         <div className="admin-intro-actions">
+          <Link href="/admin/demostraciones" className="button secondary">
+            <Video size={16} /> Videos de ejercicios
+          </Link>
           <Link href="/admin/planes" className="button secondary">
             <Library size={16} /> Biblioteca de planes
           </Link>
