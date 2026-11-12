@@ -1,5 +1,6 @@
 import type { Exercise } from "./routine";
 import { getVideoEmbedUrl } from "./video";
+import { PERSONAL_TECHNIQUE_GUIDES } from "./personal-technique-guides";
 
 /**
  * Editorially approved demonstrations from the shared catalog.
