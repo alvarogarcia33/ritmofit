@@ -624,6 +624,7 @@ export default function Home() {
                 aria-label="Seleccionar semana"
                 value={week}
                 onChange={e => {
+                  if (!confirmLeavingMarks()) return;
                   setWeek(Number(e.target.value));
                   setTraining(false);
                   setExerciseClock(null);
@@ -647,6 +648,7 @@ export default function Home() {
                     className="button secondary"
                     disabled={week <= 1}
                     onClick={() => {
+                      if (!confirmLeavingMarks()) return;
                       setWeek(current => Math.max(1, current - 1));
                       setTraining(false);
                     }}
@@ -658,6 +660,7 @@ export default function Home() {
                     className="button secondary"
                     disabled={week >= MAX_TRAINING_WEEK}
                     onClick={() => {
+                      if (!confirmLeavingMarks()) return;
                       setWeek(current => Math.min(MAX_TRAINING_WEEK, current + 1));
                       setTraining(false);
                     }}
@@ -679,6 +682,7 @@ export default function Home() {
                       key={label}
                       className={`day-chip ${day === index + 1 ? "active" : ""} ${done ? "done" : ""} ${!target ? "rest-day" : ""}`}
                       onClick={() => {
+                        if (!confirmLeavingMarks()) return;
                         setDay(index + 1);
                         setTraining(false);
                         setExerciseClock(null);
@@ -954,7 +958,7 @@ export default function Home() {
                                     key={id}
                                     className={`set-button ${record.completedSets.includes(id) ? "checked" : ""}`}
                                     disabled={busy}
-                                    aria-label={`${record.completedSets.includes(id) ? "Desmarcar" : "Completar"} serie ${i + 1} de ${e.name}`}
+                                    aria-label={`${record.completedSets.includes(id) ? "Desmarcar" : "Completar"} serie ${i + 1} de ${e.name} y guardar los pesos y repeticiones ingresados`}
                                     aria-pressed={record.completedSets.includes(
                                       id
                                     )}
@@ -983,9 +987,12 @@ export default function Home() {
                                   : "Marcar ejercicio"}
                               </button>
                             </div>
-                            <div className="exercise-measurements">
-                              <div className="exercise-measurements-heading">
+                            <details className="exercise-measurements">
+                              <summary className="exercise-measurements-heading">
                                 <strong>REGISTRÁ TU CARGA REAL</strong>
+                                <span className="exercise-mark-status">
+                                  ${ids.filter(id => record.setPerformance?.some(mark => mark.setKey === id)).length} de ${ids.length} series con datos
+                                </span>
                                 {previousMarks && (
                                   <span className="exercise-last-mark">
                                     Última vez ({dateLabel(previousMarks.date, true)}):{" "}
@@ -994,7 +1001,7 @@ export default function Home() {
                                       .join(" · ")}
                                   </span>
                                 )}
-                              </div>
+                              </summary>
                               <div className="exercise-measurements-grid">
                                 {ids.map((setKey, index) => {
                                   const mark = markDrafts[setKey];
@@ -1044,7 +1051,7 @@ export default function Home() {
                                 })}
                               </div>
                               <div className="exercise-measurements-footer">
-                                <small>Opcional: guardar marcas no completa automáticamente las series.</small>
+                                <small>Al tocar el número de una serie se guardan sus kilos, repeticiones y cumplimiento juntos. Este botón guarda marcas sin completar series.</small>
                                 <button
                                   type="button"
                                   className="button secondary exercise-mark-save"
@@ -1054,7 +1061,7 @@ export default function Home() {
                                   Guardar marcas
                                 </button>
                               </div>
-                            </div>
+                            </details>
                           </article>
                         );
                       })}
