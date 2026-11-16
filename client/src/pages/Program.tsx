@@ -183,7 +183,9 @@ export default function Program() {
             <p>
               {plan.isPersonal
                 ? "Se conserva el orden, los días y las cantidades que elegiste. No se añaden niveles ni cardio obligatorio. Estos ejercicios no tienen una demostración vinculada: revisá la técnica con tu profesional."
-                : "Se conserva el orden y la dosificación de tus referencias. No se añaden niveles ni cardio obligatorio. Consulta la lámina del día para revisar la técnica."}
+                : plan.id === "fuerza-integral-5d"
+                  ? "Programa de cinco sesiones de fuerza. Las series, las repeticiones y el orden siguen la planificación de ocho semanas. No se prescriben kilos ni cardio; revisá las indicaciones de ejecución en cada ejercicio."
+                  : "Se conserva el orden y la dosificación de tus referencias. No se añaden niveles ni cardio obligatorio. Consulta la lámina del día para revisar la técnica."}
             </p>
           </div>
         </section>
