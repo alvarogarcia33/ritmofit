@@ -151,6 +151,7 @@ describe("Rutas privadas de Plan Personal con almacenamiento mock", () => {
     expect(result.data.plans.map((item: any) => item.id)).toEqual([
       "adelgazar",
       "tonificar",
+      "fuerza-integral-5d",
       plan.id,
     ]);
     expect(result.data.plans.at(-1).isPersonal).toBe(true);
@@ -161,6 +162,7 @@ describe("Rutas privadas de Plan Personal con almacenamiento mock", () => {
     expect(admin.data.plans.map((item: any) => item.id)).toEqual([
       "adelgazar",
       "tonificar",
+      "fuerza-integral-5d",
     ]);
   });
   it("expone solo los enlaces editoriales del catálogo a usuarios autenticados", async () => {

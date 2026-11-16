@@ -6,6 +6,8 @@ import {
   type RoutineDay,
 } from "./routine";
 
+import { STRENGTH_5D_PLAN } from "./strength-plan";
+
 export const LEGACY_PLAN_ID = "adelgazar";
 
 export type TrainingPlan = {
@@ -518,6 +520,7 @@ export const DEFAULT_PLANS: TrainingPlan[] = [
     ],
     routine: { first: TONE_DAYS, second: TONE_DAYS },
   },
+  STRENGTH_5D_PLAN,
 ];
 
 export function replacePlanExerciseMediaFromDefault(
