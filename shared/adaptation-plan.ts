@@ -95,7 +95,9 @@ function adaptationExercise(
     name,
     block: 1,
     sets: initial ? 2 : laterSets,
-    reps: `${reps} repeticiones`,
+    reps: reps.includes(" por ")
+      ? `${reps.split(" por ")[0]} repeticiones por ${reps.split(" por ")[1]}`
+      : `${reps} repeticiones`,
     videoUrl: "",
     thumbnail: "/ritmo-mark.svg",
     tips: `${technique}. ${pattern}. Descanso: ${rest}. ` +
