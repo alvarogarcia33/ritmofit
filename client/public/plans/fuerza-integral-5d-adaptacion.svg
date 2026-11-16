@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="t d">
+<title id="t">Fuerza Integral 5D: Adaptación</title>
+<desc id="d">Etapa inicial de seis semanas de gimnasio, cinco días a la semana.</desc>
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0B2431"/><stop offset="1" stop-color="#13665E"/></linearGradient></defs>
+<rect width="1200" height="675" fill="url(#bg)"/>
+<g stroke="#99EED9" fill="none" stroke-width="2" opacity=".16">
+<circle cx="995" cy="332" r="260"/><circle cx="995" cy="332" r="210"/><circle cx="995" cy="332" r="160"/>
+<path d="M0 145H1200M0 265H1200M0 385H1200M0 505H1200"/>
+</g>
+<g transform="translate(805 260)" stroke="#8DEDD8" fill="none" stroke-linecap="round">
+<path d="M0 75H300" stroke-width="16"/>
+<path d="M27 30V120M55 10V140M84 30V120M216 30V120M245 10V140M273 30V120" stroke-width="15"/>
+</g>
+<path d="M75 105H350" stroke="#6DF3D5" stroke-width="9" stroke-linecap="round"/>
+<text x="74" y="205" font-family="Arial,sans-serif" font-size="34" font-weight="bold" letter-spacing="7" fill="#C3F7EB">FASE 1 · INICIACIÓN</text>
+<text x="70" y="330" font-family="Arial,sans-serif" font-size="97" font-weight="900" fill="#FFFFFF">FUERZA</text>
+<text x="70" y="444" font-family="Arial,sans-serif" font-size="97" font-weight="900" fill="#FFFFFF">INTEGRAL <tspan fill="#69E9D0">5D</tspan></text>
+<text x="74" y="516" font-family="Arial,sans-serif" font-size="43" font-weight="bold" fill="#C3F7EB">ADAPTACIÓN</text>
+<rect x="74" y="552" width="485" height="67" rx="16" fill="#16877B"/>
+<text x="103" y="596" font-family="Arial,sans-serif" font-size="30" font-weight="bold" fill="#FFFFFF">6 SEMANAS · LUN A VIE</text>
+</svg>
