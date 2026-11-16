@@ -183,6 +183,8 @@ export default function Program() {
             <p>
               {plan.isPersonal
                 ? "Se conserva el orden, los días y las cantidades que elegiste. No se añaden niveles ni cardio obligatorio. Estos ejercicios no tienen una demostración vinculada: revisá la técnica con tu profesional."
+                : plan.id === "fuerza-integral-5d-adaptacion"
+                  ? "Fase inicial: semanas 1–2 con 2 series por ejercicio; semanas 3–6 con 2–3 series. Las repeticiones indicadas no son al fallo: dejá 2–3 repeticiones posibles. Sin kilos prescritos ni cardio obligatorio."
                 : plan.id === "fuerza-integral-5d"
                   ? "Programa de cinco sesiones de fuerza. Las series, las repeticiones y el orden siguen la planificación de ocho semanas. No se prescriben kilos ni cardio; revisá las indicaciones de ejecución en cada ejercicio."
                   : "Se conserva el orden y la dosificación de tus referencias. No se añaden niveles ni cardio obligatorio. Consulta la lámina del día para revisar la técnica."}
