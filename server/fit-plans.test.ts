@@ -32,11 +32,11 @@ function routeHarness() {
 }
 
 describe("Ritmo Fit multi-plan validation", () => {
-  it("accepts all three defaults without mutating shared catalog data", () => {
+  it("accepts all four defaults without mutating shared catalog data", () => {
     const before = clone(DEFAULT_PLANS);
     const validated = DEFAULT_PLANS.map(validateTrainingPlan);
 
-    expect(validated.map(plan => plan.id)).toEqual(["adelgazar", "tonificar", "fuerza-integral-5d"]);
+    expect(validated.map(plan => plan.id)).toEqual(["adelgazar", "tonificar", "fuerza-integral-5d-adaptacion", "fuerza-integral-5d"]);
     expect(validated[1].routine.first).toHaveLength(5);
     expect(
       validated[1].routine.first.reduce(

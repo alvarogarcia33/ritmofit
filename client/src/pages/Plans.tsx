@@ -179,7 +179,11 @@ export default function Plans() {
                 <small>
                   {p.id === "tonificar"
                     ? "Cuatro semanas de seguimiento organizadas por la app; cantidades de las láminas originales."
-                    : `${p.weeks} ${p.weeks === 1 ? "semana" : "semanas"} · progreso independiente de tus otros planes.`}
+                    : p.id === "fuerza-integral-5d-adaptacion"
+                      ? "FASE 1 · Empezá aquí si recién te iniciás: 6 semanas de adaptación, con progresión y sin llegar al fallo."
+                      : p.id === "fuerza-integral-5d"
+                        ? "FASE 2 · Fuerza principal. Se recomienda después de completar la adaptación técnica."
+                        : `${p.weeks} ${p.weeks === 1 ? "semana" : "semanas"} · progreso independiente de tus otros planes.`}
                 </small>
                 <button
                   className="button plan-choice-button"

@@ -6,6 +6,7 @@ import {
   type RoutineDay,
 } from "./routine";
 
+import { ADAPTATION_5D_PLAN } from "./adaptation-plan";
 import { STRENGTH_5D_PLAN } from "./strength-plan";
 
 export const LEGACY_PLAN_ID = "adelgazar";
@@ -520,6 +521,7 @@ export const DEFAULT_PLANS: TrainingPlan[] = [
     ],
     routine: { first: TONE_DAYS, second: TONE_DAYS },
   },
+  ADAPTATION_5D_PLAN,
   STRENGTH_5D_PLAN,
 ];
 
