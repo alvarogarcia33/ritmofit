@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="t d">
+  <title id="t">Fuerza Integral 5D</title>
+  <desc id="d">Portada del programa de fuerza de cinco días por semana y ocho semanas.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#071C25"/><stop offset="1" stop-color="#063B40"/></linearGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#33CCB7"/><stop offset="1" stop-color="#8FE2C5"/></linearGradient>
+  </defs>
+  <rect width="1200" height="675" fill="url(#bg)"/>
+  <g opacity=".12" stroke="#B2FFF0" stroke-width="1">
+    <path d="M0 90H1200M0 180H1200M0 270H1200M0 360H1200M0 450H1200M0 540H1200M0 630H1200"/>
+    <path d="M90 0V675M180 0V675M270 0V675M360 0V675M450 0V675M540 0V675M630 0V675M720 0V675M810 0V675M900 0V675M990 0V675M1080 0V675"/>
+  </g>
+  <circle cx="945" cy="320" r="250" fill="none" stroke="#36BCAB" stroke-width="2" opacity=".25"/>
+  <circle cx="945" cy="320" r="199" fill="none" stroke="#36BCAB" stroke-width="2" opacity=".18"/>
+  <g transform="translate(795 282)" fill="none" stroke="#63DEC4" stroke-linecap="round">
+    <path d="M0 40H300" stroke-width="18"/>
+    <path d="M24 0V80M50 -17V97M76 7V73M224 7V73M250 -17V97M276 0V80" stroke-width="13"/>
+    <path d="M90 0V80M210 0V80" stroke-width="4" opacity=".4"/>
+  </g>
+  <path d="M78 107H320" stroke="url(#line)" stroke-width="8" stroke-linecap="round"/>
+  <text x="76" y="207" fill="#B4EEE2" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="34" letter-spacing="9">PROGRAMA DE FUERZA</text>
+  <text x="70" y="352" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="102">FUERZA</text>
+  <text x="70" y="467" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="102">INTEGRAL <tspan fill="#54D8BF">5D</tspan></text>
+  <rect x="76" y="525" width="480" height="74" rx="17" fill="#0D766C"/>
+  <text x="106" y="571" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="31" font-weight="700">8 SEMANAS · LUN A VIE</text>
+</svg>
