@@ -15,9 +15,9 @@ describe("Fuerza Integral 5D como tercer plan independiente", () => {
 
   it("se registra como opción nueva sin sustituir Adelgazar ni Tonificar", () => {
     expect(DEFAULT_PLANS.map(p => p.id)).toEqual([
-      "adelgazar", "tonificar", "fuerza-integral-5d",
+      "adelgazar", "tonificar", "fuerza-integral-5d-adaptacion", "fuerza-integral-5d",
     ]);
-    expect(new Set(DEFAULT_PLANS.map(p => p.id)).size).toBe(3);
+    expect(new Set(DEFAULT_PLANS.map(p => p.id)).size).toBe(4);
     expect(plan.title).toBe("Fuerza Integral 5D");
     expect(plan.published).toBe(true);
   });
