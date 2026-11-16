@@ -50,7 +50,7 @@ describe("Fuerza Integral 5D como tercer plan independiente", () => {
     expect(plan.mode).toBe("straight");
     expect(planConfig(plan, "beginner").cardioMinutes).toBe(0);
     expect(planConfig(plan, "advanced").cardioMinutes).toBe(0);
-    expect(JSON.stringify(plan)).not.toMatch(/\\b(?:kg|kilogramos prescritos)\\b/i);
+    expect(plan.routine.first.flatMap(d => d.exercises).every(e => !("weightKg" in e))).toBe(true);
     expect(validateTrainingPlan(plan)).toEqual(plan);
   });
 
